@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.5)
 
 project(gegege_proj LANGUAGES C CXX)
 
+add_subdirectory(thirdparty)
+
 add_subdirectory(src)
 
 target_include_directories(gegege_cpp
