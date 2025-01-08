@@ -22,7 +22,12 @@ void VulkanEngine::startup()
     }
 
     SDL_Log("Vulkan Engine: load vulkan API");
-    if (VK_SUCCESS != volkInitialize())
+    if (VK_SUCCESS == volkInitialize())
+    {
+        uint32_t version = volkGetInstanceVersion();
+        SDL_Log("Vulkan Engine: Vulkan %d.%d.%d", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
+    }
+    else
     {
         SDL_Log("Vulkan Engine: vulkan loader is failed");
     }
