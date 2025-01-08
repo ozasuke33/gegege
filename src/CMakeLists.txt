@@ -3,5 +3,7 @@ add_library(gegege_cpp
 )
 
 target_link_libraries(gegege_cpp PUBLIC
+    Vulkan::Vulkan
     SDL3::SDL3
+    volk::volk_headers
 )
