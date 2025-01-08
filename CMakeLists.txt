@@ -1,10 +1,8 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.5)
 
 project(gegege_proj LANGUAGES C CXX)
 
-add_library(gegege_cpp
-    src/gegege/vulkan_engine/vulkan_engine.cpp
-)
+add_subdirectory(src)
 
 target_include_directories(gegege_cpp
     PUBLIC
