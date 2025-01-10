@@ -7,10 +7,3 @@ set(SDL_SHARED_DEFAULT OFF CACHE INTERNAL "")
 set(SDL_SHARED OFF CACHE INTERNAL "")
 set(SDL_STATIC ON CACHE INTERNAL "")
 FetchContent_MakeAvailable(SDL)
-
-
-FetchContent_Declare(volk
-    URL https://github.com/zeux/volk/archive/refs/tags/1.4.304.tar.gz
-)
-set(VOLK_HEADERS_ONLY ON CACHE INTERNAL "")
-FetchContent_MakeAvailable(volk)
