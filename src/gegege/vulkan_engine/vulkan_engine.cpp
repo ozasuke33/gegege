@@ -105,6 +105,9 @@ void VulkanEngine::initVulkan()
 
     physicalDevice = instance.enumeratePhysicalDevices().front();
 
+    SDL_Log("Vulkan Engine: device name: %s", physicalDevice.getProperties().deviceName);
+    SDL_Log("Vulkan Engine: Vulkan version: %d.%d.%d", VK_API_VERSION_MAJOR(physicalDevice.getProperties().apiVersion), VK_API_VERSION_MINOR(physicalDevice.getProperties().apiVersion), VK_API_VERSION_PATCH(physicalDevice.getProperties().apiVersion));
+    SDL_Log("Vulkan Engine: driver version: %d.%d.%d", VK_API_VERSION_MAJOR(physicalDevice.getProperties().driverVersion), VK_API_VERSION_MINOR(physicalDevice.getProperties().driverVersion), VK_API_VERSION_PATCH(physicalDevice.getProperties().driverVersion));
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 
     auto propertyIterator = std::find_if(queueFamilyProperties.begin(),
@@ -157,6 +160,7 @@ void VulkanEngine::initVulkan()
 void VulkanEngine::deinitVulkan()
 {
     SDL_Log("Vulkan Engine: finalize Vulkan");
+    device.waitIdle();
     for (auto& imageView : imageViews)
     {
         device.destroyImageView(imageView);
