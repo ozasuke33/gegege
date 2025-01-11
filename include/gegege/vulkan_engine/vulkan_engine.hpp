@@ -27,6 +27,8 @@ class VulkanEngine {
     vk::Device device;
     uint32_t graphicsQueueFamilyIndex;
     uint32_t presentQueueFamilyIndex;
+    vk::Queue graphicsQueue;
+    vk::Queue presentQueue;
     vk::SurfaceKHR surface;
     vk::SwapchainKHR swapChain;
     std::vector<vk::ImageView> imageViews;
@@ -37,6 +39,7 @@ class VulkanEngine {
 
     void createSwapChain(uint32_t width, uint32_t height);
     void initCommandBuffer();
+    void initSyncStructure();
     void initVulkan();
     void deinitVulkan();
 

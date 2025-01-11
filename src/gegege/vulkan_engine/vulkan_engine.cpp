@@ -78,6 +78,7 @@ void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
 
 void VulkanEngine::initCommandBuffer()
 {
+    SDL_Log("Vulkan Engine: init command buffer");
     vk::CommandPoolCreateInfo createInfo{};
     createInfo.setQueueFamilyIndex(graphicsQueueFamilyIndex);
     createInfo.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
@@ -86,6 +87,22 @@ void VulkanEngine::initCommandBuffer()
     {
         frames[i].commandPool = device.createCommandPool(createInfo);
         frames[i].mainCommandBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(frames[i].commandPool, vk::CommandBufferLevel::ePrimary, 1)).front();
+    }
+}
+
+void VulkanEngine::initSyncStructure()
+{
+    SDL_Log("Vulkan Engine: init sync structure");
+    vk::FenceCreateInfo fenceCreateInfo;
+    fenceCreateInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
+    vk::SemaphoreCreateInfo semaphoreCreateInfo{};
+
+    for (int i = 0; i < FRAME_OVERLAP; ++i)
+    {
+        frames[i].renderFence = device.createFence(fenceCreateInfo);
+
+        frames[i].swapchainSemaphore = device.createSemaphore(semaphoreCreateInfo);
+        frames[i].renderSemaphore = device.createSemaphore(semaphoreCreateInfo);
     }
 }
 
@@ -168,9 +185,14 @@ void VulkanEngine::initVulkan()
     std::vector<const char*> deviceExt = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     device = physicalDevice.createDevice(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), deviceQueueCreateInfo, {}, deviceExt));
 
+    graphicsQueue = device.getQueue(graphicsQueueFamilyIndex, 0);
+    presentQueue = device.getQueue(presentQueueFamilyIndex, 0);
+
     createSwapChain(640, 480);
 
     initCommandBuffer();
+
+    initSyncStructure();
 }
 
 void VulkanEngine::deinitVulkan()
@@ -181,6 +203,10 @@ void VulkanEngine::deinitVulkan()
     for (int i = 0; i < FRAME_OVERLAP; ++i)
     {
         device.destroyCommandPool(frames[i].commandPool);
+
+        device.destroyFence(frames[i].renderFence);
+        device.destroySemaphore(frames[i].swapchainSemaphore);
+        device.destroySemaphore(frames[i].renderSemaphore);
     }
 
     for (auto& imageView : imageViews)
