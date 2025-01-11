@@ -76,6 +76,19 @@ void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
     }
 }
 
+void VulkanEngine::initCommandBuffer()
+{
+    vk::CommandPoolCreateInfo createInfo{};
+    createInfo.setQueueFamilyIndex(graphicsQueueFamilyIndex);
+    createInfo.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
+
+    for (int i = 0; i < FRAME_OVERLAP; ++i)
+    {
+        frames[i].commandPool = device.createCommandPool(createInfo);
+        frames[i].mainCommandBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(frames[i].commandPool, vk::CommandBufferLevel::ePrimary, 1)).front();
+    }
+}
+
 void VulkanEngine::initVulkan()
 {
     SDL_Log("Vulkan Engine: initialize Vulkan");
@@ -108,6 +121,7 @@ void VulkanEngine::initVulkan()
     SDL_Log("Vulkan Engine: device name: %s", physicalDevice.getProperties().deviceName);
     SDL_Log("Vulkan Engine: Vulkan version: %d.%d.%d", VK_API_VERSION_MAJOR(physicalDevice.getProperties().apiVersion), VK_API_VERSION_MINOR(physicalDevice.getProperties().apiVersion), VK_API_VERSION_PATCH(physicalDevice.getProperties().apiVersion));
     SDL_Log("Vulkan Engine: driver version: %d.%d.%d", VK_API_VERSION_MAJOR(physicalDevice.getProperties().driverVersion), VK_API_VERSION_MINOR(physicalDevice.getProperties().driverVersion), VK_API_VERSION_PATCH(physicalDevice.getProperties().driverVersion));
+
     std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
 
     auto propertyIterator = std::find_if(queueFamilyProperties.begin(),
@@ -155,12 +169,20 @@ void VulkanEngine::initVulkan()
     device = physicalDevice.createDevice(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), deviceQueueCreateInfo, {}, deviceExt));
 
     createSwapChain(640, 480);
+
+    initCommandBuffer();
 }
 
 void VulkanEngine::deinitVulkan()
 {
     SDL_Log("Vulkan Engine: finalize Vulkan");
     device.waitIdle();
+
+    for (int i = 0; i < FRAME_OVERLAP; ++i)
+    {
+        device.destroyCommandPool(frames[i].commandPool);
+    }
+
     for (auto& imageView : imageViews)
     {
         device.destroyImageView(imageView);
