@@ -5,9 +5,28 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include <functional>
 #include <vector>
 
 namespace gegege {
+
+struct DeletionQueue {
+    std::vector<std::function<void()>> deletors;
+
+    void pushFunction(std::function<void()>&& function)
+    {
+        deletors.push_back(function);
+    }
+
+    void flush()
+    {
+        for (auto it = deletors.rbegin(); it != deletors.rend(); ++it)
+        {
+            (*it)();
+        }
+        deletors.clear();
+    }
+};
 
 constexpr unsigned int FRAME_OVERLAP = 2;
 
@@ -17,6 +36,7 @@ struct FrameData {
     vk::Semaphore swapchainSemaphore;
     vk::Semaphore renderSemaphore;
     vk::Fence renderFence;
+    DeletionQueue deletionQueue;
 };
 
 class VulkanEngine {
@@ -37,6 +57,8 @@ class VulkanEngine {
     FrameData frames[FRAME_OVERLAP];
     uint32_t frameNumber;
     FrameData& getCurrentFrame() { return frames[frameNumber % FRAME_OVERLAP]; }
+
+    DeletionQueue mainDeletionQueue;
 
     const uint64_t fenceTimeout = 100000000;
 

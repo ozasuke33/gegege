@@ -248,7 +248,11 @@ void VulkanEngine::deinitVulkan()
         device.destroyFence(frames[i].renderFence);
         device.destroySemaphore(frames[i].swapchainSemaphore);
         device.destroySemaphore(frames[i].renderSemaphore);
+
+        frames[i].deletionQueue.flush();
     }
+
+    mainDeletionQueue.flush();
 
     for (auto& imageView : imageViews)
     {
@@ -285,6 +289,8 @@ void VulkanEngine::draw()
 {
     device.waitForFences(getCurrentFrame().renderFence, true, fenceTimeout);
     device.resetFences(getCurrentFrame().renderFence);
+
+    getCurrentFrame().deletionQueue.flush();
 
     vk::ResultValue<uint32_t> currentBuffer = device.acquireNextImageKHR(swapChain, fenceTimeout, getCurrentFrame().swapchainSemaphore, nullptr);
     assert(currentBuffer.result == vk::Result::eSuccess);
