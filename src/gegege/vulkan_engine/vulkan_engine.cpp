@@ -2,6 +2,42 @@
 
 namespace gegege {
 
+vk::ImageSubresourceRange VulkanEngine::imageSubresourceRange(vk::ImageAspectFlags aspectMask)
+{
+    vk::ImageSubresourceRange subImage{};
+    subImage.setAspectMask(aspectMask);
+    subImage.setBaseMipLevel(0);
+    subImage.setLevelCount(vk::RemainingMipLevels);
+    subImage.setBaseArrayLayer(0);
+    subImage.setLayerCount(vk::RemainingArrayLayers);
+
+    return subImage;
+}
+
+void VulkanEngine::transitionImage(vk::CommandBuffer& cmd, vk::Image& image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout)
+{
+    vk::ImageMemoryBarrier2 imageBarrier{};
+
+    imageBarrier.setSrcStageMask(vk::PipelineStageFlagBits2::eAllCommands);
+    imageBarrier.setSrcAccessMask(vk::AccessFlagBits2::eMemoryWrite);
+    imageBarrier.setDstStageMask(vk::PipelineStageFlagBits2::eAllCommands);
+    imageBarrier.setDstAccessMask(vk::AccessFlagBits2::eMemoryWrite | vk::AccessFlagBits2::eMemoryRead);
+
+    imageBarrier.setOldLayout(currentLayout);
+    imageBarrier.setNewLayout(newLayout);
+
+    vk::ImageAspectFlagBits aspectMask = (newLayout == vk::ImageLayout::eDepthAttachmentOptimal) ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor;
+    imageBarrier.setSubresourceRange(imageSubresourceRange(aspectMask));
+    imageBarrier.setImage(image);
+
+    vk::DependencyInfo depInfo{};
+
+    depInfo.setImageMemoryBarrierCount(1);
+    depInfo.setPImageMemoryBarriers(&imageBarrier);
+
+    cmd.pipelineBarrier2(depInfo);
+}
+
 void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
 {
     SDL_Log("Vulkan Engine: create SwapChain");
@@ -43,7 +79,7 @@ void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
                                                    vk::ColorSpaceKHR::eSrgbNonlinear,
                                                    swapchainExtent,
                                                    1,
-                                                   vk::ImageUsageFlagBits::eColorAttachment,
+                                                   vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst,
                                                    vk::SharingMode::eExclusive,
                                                    {},
                                                    preTransform,
@@ -65,7 +101,7 @@ void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
 
     swapChain = device.createSwapchainKHR(swapChainCreateInfo);
 
-    std::vector<vk::Image> swapChainImages = device.getSwapchainImagesKHR(swapChain);
+    swapChainImages = device.getSwapchainImagesKHR(swapChain);
 
     imageViews.reserve(swapChainImages.size());
     vk::ImageViewCreateInfo imageViewCreateInfo({}, {}, vk::ImageViewType::e2D, format, {}, {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
@@ -183,7 +219,12 @@ void VulkanEngine::initVulkan()
     float queuePriority = 0.0f;
     vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), graphicsQueueFamilyIndex, 1, &queuePriority);
     std::vector<const char*> deviceExt = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-    device = physicalDevice.createDevice(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), deviceQueueCreateInfo, {}, deviceExt));
+
+    vk::PhysicalDeviceVulkan13Features features{};
+    features.setDynamicRendering(true);
+    features.setSynchronization2(true);
+
+    device = physicalDevice.createDevice(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), deviceQueueCreateInfo, {}, deviceExt, {}, &features));
 
     graphicsQueue = device.getQueue(graphicsQueueFamilyIndex, 0);
     presentQueue = device.getQueue(presentQueueFamilyIndex, 0);
@@ -238,6 +279,101 @@ void VulkanEngine::startup()
     }
 
     initVulkan();
+}
+
+void VulkanEngine::draw()
+{
+    device.waitForFences(getCurrentFrame().renderFence, true, fenceTimeout);
+    device.resetFences(getCurrentFrame().renderFence);
+
+    vk::ResultValue<uint32_t> currentBuffer = device.acquireNextImageKHR(swapChain, fenceTimeout, getCurrentFrame().swapchainSemaphore, nullptr);
+    assert(currentBuffer.result == vk::Result::eSuccess);
+    uint32_t swapchainImageIndex = currentBuffer.value;
+
+    vk::CommandBuffer cmd = getCurrentFrame().mainCommandBuffer;
+
+    cmd.reset();
+
+    vk::CommandBufferBeginInfo beginInfo{};
+    beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+
+    cmd.begin(beginInfo);
+
+    // make the swapchain image into writeable mode before rendering
+    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
+
+    // make a clear-color from frame number. This will flash with a 120 frame period.
+    vk::ClearColorValue clearValue{};
+    float flash = std::abs(std::sin(frameNumber / 120.0f));
+    clearValue.setFloat32({0.0f, 0.0f, flash, 1.0f});
+
+    vk::ImageSubresourceRange clearRange = imageSubresourceRange(vk::ImageAspectFlagBits::eColor);
+
+    // clear image
+    cmd.clearColorImage(swapChainImages[swapchainImageIndex], vk::ImageLayout::eGeneral, &clearValue, 1, &clearRange);
+
+    // make the swapchain image into presentable mode
+    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eGeneral, vk::ImageLayout::ePresentSrcKHR);
+
+    cmd.end();
+
+    vk::CommandBufferSubmitInfo cmdInfo(cmd);
+
+    vk::SemaphoreSubmitInfo waitInfo(getCurrentFrame().swapchainSemaphore, 1, vk::PipelineStageFlagBits2::eColorAttachmentOutput);
+    vk::SemaphoreSubmitInfo signalInfo(getCurrentFrame().renderSemaphore, 1, vk::PipelineStageFlagBits2::eAllGraphics);
+
+    vk::SubmitInfo2 submit({}, {waitInfo}, {cmdInfo}, {signalInfo});
+
+    graphicsQueue.submit2(1, &submit, getCurrentFrame().renderFence);
+
+    vk::PresentInfoKHR presentInfo{};
+    presentInfo.setSwapchains({swapChain});
+
+    presentInfo.setWaitSemaphores({getCurrentFrame().renderSemaphore});
+
+    presentInfo.setPImageIndices(&swapchainImageIndex);
+
+    presentQueue.presentKHR(presentInfo);
+
+    frameNumber++;
+}
+
+void VulkanEngine::run()
+{
+    SDL_Event ev;
+    bool bQuit = false;
+
+    while (!bQuit)
+    {
+        while (SDL_PollEvent(&ev) != 0)
+        {
+            if (ev.type == SDL_EVENT_QUIT)
+            {
+                SDL_Log("Vulkan Engine: SDL_EVENT_QUIT is occured");
+                bQuit = true;
+            }
+
+            if (ev.type == SDL_EVENT_WINDOW_MINIMIZED)
+            {
+                SDL_Log("Vulkan Engine: SDL_EVENT_WINDOW_MINIMIZED is occured");
+                stopRendering = true;
+            }
+            if (ev.type == SDL_EVENT_WINDOW_RESTORED)
+            {
+                SDL_Log("Vulkan Engine: SDL_EVENT_WINDOW_RESTORED is occured");
+                stopRendering = false;
+            }
+        }
+
+        if (stopRendering)
+        {
+            SDL_Delay(100);
+        }
+        else
+        {
+            draw();
+        }
+    }
 }
 
 void VulkanEngine::shutdown()

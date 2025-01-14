@@ -31,12 +31,19 @@ class VulkanEngine {
     vk::Queue presentQueue;
     vk::SurfaceKHR surface;
     vk::SwapchainKHR swapChain;
+    std::vector<vk::Image> swapChainImages;
     std::vector<vk::ImageView> imageViews;
 
     FrameData frames[FRAME_OVERLAP];
     uint32_t frameNumber;
     FrameData& getCurrentFrame() { return frames[frameNumber % FRAME_OVERLAP]; }
 
+    const uint64_t fenceTimeout = 100000000;
+
+    bool stopRendering;
+
+    vk::ImageSubresourceRange imageSubresourceRange(vk::ImageAspectFlags aspectMask);
+    void transitionImage(vk::CommandBuffer& cmd, vk::Image& image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout);
     void createSwapChain(uint32_t width, uint32_t height);
     void initCommandBuffer();
     void initSyncStructure();
@@ -45,6 +52,8 @@ class VulkanEngine {
 
 public:
     void startup();
+    void draw();
+    void run();
     void shutdown();
 };
 
