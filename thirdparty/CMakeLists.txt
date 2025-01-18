@@ -7,3 +7,9 @@ set(SDL_SHARED_DEFAULT OFF CACHE INTERNAL "")
 set(SDL_SHARED OFF CACHE INTERNAL "")
 set(SDL_STATIC ON CACHE INTERNAL "")
 FetchContent_MakeAvailable(SDL)
+
+
+FetchContent_Declare(VMA
+    URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.2.0.tar.gz
+)
+FetchContent_MakeAvailable(VMA)

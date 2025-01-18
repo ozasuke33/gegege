@@ -1,6 +1,54 @@
 #include <gegege/vulkan_engine/vulkan_engine.hpp>
 
+#include <vulkan/vulkan.h>
+
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
+
 namespace gegege {
+
+vk::ImageCreateInfo VulkanEngine::imageCreateInfo(vk::Format format, vk::ImageUsageFlags usageFlags, vk::Extent3D extent)
+{
+    vk::ImageCreateInfo info{};
+
+    info.setImageType(vk::ImageType::e2D);
+
+    info.setFormat(format);
+    info.setExtent(extent);
+
+    info.setMipLevels(1);
+    info.setArrayLayers(1);
+
+    // for MSAA. we will not be using it by default, so default it to 1 sample per pixel.
+    info.setSamples(vk::SampleCountFlagBits::e1);
+
+    // optimal tiling, which means the image is stored on the best gpu format
+    info.setTiling(vk::ImageTiling::eOptimal);
+    info.setUsage(usageFlags);
+
+    return info;
+}
+
+vk::ImageViewCreateInfo VulkanEngine::imageviewCreateInfo(vk::Format format, vk::Image image, vk::ImageAspectFlagBits aspectFlags)
+{
+    // build a image-view for the depth image to use for rendering
+    vk::ImageViewCreateInfo info{};
+
+    info.setViewType(vk::ImageViewType::e2D);
+    info.setImage(image);
+    info.setFormat(format);
+
+    vk::ImageSubresourceRange range{};
+    range.setBaseMipLevel(0);
+    range.setLevelCount(1);
+    range.setBaseArrayLayer(0);
+    range.setLayerCount(1);
+    range.setAspectMask(aspectFlags);
+
+    info.setSubresourceRange(range);
+
+    return info;
+}
 
 vk::ImageSubresourceRange VulkanEngine::imageSubresourceRange(vk::ImageAspectFlags aspectMask)
 {
@@ -14,7 +62,7 @@ vk::ImageSubresourceRange VulkanEngine::imageSubresourceRange(vk::ImageAspectFla
     return subImage;
 }
 
-void VulkanEngine::transitionImage(vk::CommandBuffer& cmd, vk::Image& image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout)
+void VulkanEngine::transitionImage(vk::CommandBuffer cmd, vk::Image image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout)
 {
     vk::ImageMemoryBarrier2 imageBarrier{};
 
@@ -36,6 +84,40 @@ void VulkanEngine::transitionImage(vk::CommandBuffer& cmd, vk::Image& image, vk:
     depInfo.setPImageMemoryBarriers(&imageBarrier);
 
     cmd.pipelineBarrier2(depInfo);
+}
+
+void VulkanEngine::copyImageToImage(vk::CommandBuffer cmd, vk::Image source, vk::Image destination, vk::Extent2D srcSize, vk::Extent2D dstSize)
+{
+    vk::ImageBlit2 blitRegion{};
+
+    blitRegion.srcOffsets[1].setX(srcSize.width);
+    blitRegion.srcOffsets[1].setY(srcSize.height);
+    blitRegion.srcOffsets[1].setZ(1);
+
+    blitRegion.dstOffsets[1].setX(dstSize.width);
+    blitRegion.dstOffsets[1].setY(dstSize.height);
+    blitRegion.dstOffsets[1].setZ(1);
+
+    blitRegion.srcSubresource.setAspectMask(vk::ImageAspectFlagBits::eColor);
+    blitRegion.srcSubresource.setBaseArrayLayer(0);
+    blitRegion.srcSubresource.setLayerCount(1);
+    blitRegion.srcSubresource.setMipLevel(0);
+
+    blitRegion.dstSubresource.setAspectMask(vk::ImageAspectFlagBits::eColor);
+    blitRegion.dstSubresource.setBaseArrayLayer(0);
+    blitRegion.dstSubresource.setLayerCount(1);
+    blitRegion.dstSubresource.setMipLevel(0);
+
+    vk::BlitImageInfo2 blitInfo{};
+    blitInfo.setDstImage(destination);
+    blitInfo.setDstImageLayout(vk::ImageLayout::eTransferDstOptimal);
+    blitInfo.setSrcImage(source);
+    blitInfo.setSrcImageLayout(vk::ImageLayout::eTransferSrcOptimal);
+    blitInfo.setFilter(vk::Filter::eLinear);
+    blitInfo.setRegionCount(1);
+    blitInfo.setPRegions(&blitRegion);
+
+    cmd.blitImage2(&blitInfo);
 }
 
 void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
@@ -110,6 +192,45 @@ void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
         imageViewCreateInfo.image = image;
         imageViews.push_back(device.createImageView(imageViewCreateInfo));
     }
+}
+
+void VulkanEngine::initSwapchain()
+{
+    createSwapChain(windowExtent.width, windowExtent.height);
+
+    vk::Extent3D drawImageExtent = {
+        windowExtent.width,
+        windowExtent.height,
+        1};
+
+    drawImage.imageFormat = vk::Format::eR16G16B16A16Sfloat;
+    drawImage.imageExtent = drawImageExtent;
+
+    vk::ImageUsageFlags drawImageUsages{};
+    drawImageUsages |= vk::ImageUsageFlagBits::eTransferSrc;
+    drawImageUsages |= vk::ImageUsageFlagBits::eTransferDst;
+    drawImageUsages |= vk::ImageUsageFlagBits::eStorage;
+    drawImageUsages |= vk::ImageUsageFlagBits::eColorAttachment;
+
+    vk::ImageCreateInfo rimgInfo = imageCreateInfo(drawImage.imageFormat, drawImageUsages, drawImageExtent);
+
+    // for the draw image, we want to allocate it from gpu local memory
+    VmaAllocationCreateInfo rimgAllocInfo{};
+    rimgAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    rimgAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+    // allocate and create the image
+    vmaCreateImage(allocator, (const VkImageCreateInfo*)(&rimgInfo), (const VmaAllocationCreateInfo*)(&rimgAllocInfo), (VkImage*)&drawImage.image, &drawImage.allocation, nullptr);
+
+    // build a image-view for the draw image to use for rendering
+    vk::ImageViewCreateInfo rviewInfo = imageviewCreateInfo(drawImage.imageFormat, drawImage.image, vk::ImageAspectFlagBits::eColor);
+
+    device.createImageView(&rviewInfo, nullptr, &drawImage.imageView);
+
+    mainDeletionQueue.pushFunction([=]() {
+        device.destroyImageView(drawImage.imageView);
+        vmaDestroyImage(allocator, drawImage.image, drawImage.allocation);
+    });
 }
 
 void VulkanEngine::initCommandBuffer()
@@ -220,16 +341,32 @@ void VulkanEngine::initVulkan()
     vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), graphicsQueueFamilyIndex, 1, &queuePriority);
     std::vector<const char*> deviceExt = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-    vk::PhysicalDeviceVulkan13Features features{};
-    features.setDynamicRendering(true);
-    features.setSynchronization2(true);
+    vk::PhysicalDeviceVulkan12Features features12{};
+    features12.setBufferDeviceAddress(true);
 
-    device = physicalDevice.createDevice(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), deviceQueueCreateInfo, {}, deviceExt, {}, &features));
+    vk::PhysicalDeviceVulkan13Features features13{};
+    features13.setDynamicRendering(true);
+    features13.setSynchronization2(true);
+
+    features12.setPNext(&features13);
+
+    device = physicalDevice.createDevice(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), deviceQueueCreateInfo, {}, deviceExt, {}, &features12));
 
     graphicsQueue = device.getQueue(graphicsQueueFamilyIndex, 0);
     presentQueue = device.getQueue(presentQueueFamilyIndex, 0);
 
-    createSwapChain(640, 480);
+    VmaAllocatorCreateInfo allocatorInfo{};
+    allocatorInfo.physicalDevice = physicalDevice;
+    allocatorInfo.device = device;
+    allocatorInfo.instance = instance;
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    vmaCreateAllocator(&allocatorInfo, &allocator);
+
+    mainDeletionQueue.pushFunction([&]() {
+        vmaDestroyAllocator(allocator);
+    });
+
+    initSwapchain();
 
     initCommandBuffer();
 
@@ -265,6 +402,19 @@ void VulkanEngine::deinitVulkan()
     instance.destroy();
 }
 
+void VulkanEngine::drawBackground(vk::CommandBuffer cmd)
+{
+    // make a clear-color from frame number. This will flash with a 120 frame period.
+    vk::ClearColorValue clearValue{};
+    float flash = std::abs(std::sin(frameNumber / 120.0f));
+    clearValue.setFloat32({0.0f, 0.0f, flash, 1.0f});
+
+    vk::ImageSubresourceRange clearRange = imageSubresourceRange(vk::ImageAspectFlagBits::eColor);
+
+    // clear image
+    cmd.clearColorImage(drawImage.image, vk::ImageLayout::eGeneral, &clearValue, 1, &clearRange);
+}
+
 void VulkanEngine::startup()
 {
     SDL_Log("Vulkan Engine: initialize SDL");
@@ -275,7 +425,7 @@ void VulkanEngine::startup()
     }
 
     SDL_Log("Vulkan Engine: create window");
-    sdlWindow = SDL_CreateWindow("gegege::VulkanEngine", 640, 480, SDL_WINDOW_VULKAN);
+    sdlWindow = SDL_CreateWindow("gegege::VulkanEngine", windowExtent.width, windowExtent.height, SDL_WINDOW_VULKAN);
     if (!sdlWindow)
     {
         SDL_Log("Vulkan Engine: Couldn't create window: %s", SDL_GetError());
@@ -303,23 +453,25 @@ void VulkanEngine::draw()
     vk::CommandBufferBeginInfo beginInfo{};
     beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
+    drawExtent.width = drawImage.imageExtent.width;
+    drawExtent.height = drawImage.imageExtent.height;
+
     cmd.begin(beginInfo);
 
-    // make the swapchain image into writeable mode before rendering
-    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
+    // transition our main draw image into general layout so we can write into it
+    // we will overwrite it all so we dont care about what was the older layout
+    transitionImage(cmd, drawImage.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
 
-    // make a clear-color from frame number. This will flash with a 120 frame period.
-    vk::ClearColorValue clearValue{};
-    float flash = std::abs(std::sin(frameNumber / 120.0f));
-    clearValue.setFloat32({0.0f, 0.0f, flash, 1.0f});
+    drawBackground(cmd);
 
-    vk::ImageSubresourceRange clearRange = imageSubresourceRange(vk::ImageAspectFlagBits::eColor);
+    // transition the draw image and the swapchain image into their correct transfer layouts
+    transitionImage(cmd, drawImage.image, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
+    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
 
-    // clear image
-    cmd.clearColorImage(swapChainImages[swapchainImageIndex], vk::ImageLayout::eGeneral, &clearValue, 1, &clearRange);
+    copyImageToImage(cmd, drawImage.image, swapChainImages[swapchainImageIndex], drawExtent, windowExtent);
 
-    // make the swapchain image into presentable mode
-    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eGeneral, vk::ImageLayout::ePresentSrcKHR);
+    // set swapchain image layout to Present so we can show it on the screen
+    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR);
 
     cmd.end();
 

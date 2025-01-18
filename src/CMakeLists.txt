@@ -4,5 +4,6 @@ add_library(gegege_cpp
 
 target_link_libraries(gegege_cpp PUBLIC
     Vulkan::Vulkan
+    VulkanMemoryAllocator
     SDL3::SDL3
 )
