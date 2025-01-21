@@ -9,7 +9,7 @@
 #include <functional>
 #include <vector>
 
-namespace gegege {
+namespace gegege::vulkan {
 
 struct DeletionQueue {
     std::vector<std::function<void()>> deletors;
@@ -101,4 +101,4 @@ public:
     void shutdown();
 };
 
-} // namespace gegege
+} // namespace gegege::vulkan

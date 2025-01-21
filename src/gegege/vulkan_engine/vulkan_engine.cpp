@@ -5,7 +5,7 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
-namespace gegege {
+namespace gegege::vulkan {
 
 vk::ImageCreateInfo VulkanEngine::imageCreateInfo(vk::Format format, vk::ImageUsageFlags usageFlags, vk::Extent3D extent)
 {
@@ -542,4 +542,4 @@ void VulkanEngine::shutdown()
     SDL_Quit();
 }
 
-} // namespace gegege
+} // namespace gegege::vulkan

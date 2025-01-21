@@ -13,4 +13,10 @@ target_include_directories(gegege_cpp
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
+set_target_properties(gegege_cpp PROPERTIES
+    CXX_STANDARD 20
+    CXX_EXTENSIONS OFF
+    CXX_STANDARD_REQUIRED ON
+)
+
 add_subdirectory(example)
