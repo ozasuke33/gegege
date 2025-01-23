@@ -9,6 +9,8 @@
 #include <functional>
 #include <vector>
 
+#include "descriptor.hpp"
+
 namespace gegege::vulkan {
 
 struct DeletionQueue {
@@ -65,6 +67,14 @@ class VulkanEngine {
     std::vector<vk::Image> swapChainImages;
     std::vector<vk::ImageView> imageViews;
 
+    DescriptorAllocator globalDescriptorAllocator;
+
+    vk::DescriptorSet drawImageDescriptors;
+    vk::DescriptorSetLayout drawImageDescriptorLayout;
+
+    vk::Pipeline gradientPipeline;
+    vk::PipelineLayout gradientPipelineLayout;
+
     AllocatedImage drawImage;
     vk::Extent2D drawExtent;
 
@@ -83,12 +93,19 @@ class VulkanEngine {
     vk::ImageCreateInfo imageCreateInfo(vk::Format format, vk::ImageUsageFlags usageFlags, vk::Extent3D extent);
     vk::ImageViewCreateInfo imageviewCreateInfo(vk::Format format, vk::Image image, vk::ImageAspectFlagBits aspectFlags);
     vk::ImageSubresourceRange imageSubresourceRange(vk::ImageAspectFlags aspectMask);
+
+    void loadShaderModule(const char* filePath, vk::Device device, vk::ShaderModule* outShaderModule);
+
     void transitionImage(vk::CommandBuffer cmd, vk::Image image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout);
     void copyImageToImage(vk::CommandBuffer cmd, vk::Image source, vk::Image destination, vk::Extent2D srcSize, vk::Extent2D dstSize);
+
     void createSwapChain(uint32_t width, uint32_t height);
     void initSwapchain();
     void initCommandBuffer();
     void initSyncStructure();
+    void initDescriptor();
+    void initPipeline();
+    void initBackgroundPipeline();
     void initVulkan();
     void deinitVulkan();
 

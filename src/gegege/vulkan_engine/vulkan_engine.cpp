@@ -1,9 +1,13 @@
+#include <gegege/vulkan_engine/vk_check.hpp>
 #include <gegege/vulkan_engine/vulkan_engine.hpp>
+#include <gegege/assert.hpp>
 
 #include <vulkan/vulkan.h>
 
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
+
+#include <fstream>
 
 namespace gegege::vulkan {
 
@@ -60,6 +64,44 @@ vk::ImageSubresourceRange VulkanEngine::imageSubresourceRange(vk::ImageAspectFla
     subImage.setLayerCount(vk::RemainingArrayLayers);
 
     return subImage;
+}
+
+void VulkanEngine::loadShaderModule(const char* filePath, vk::Device device, vk::ShaderModule* outShaderModule)
+{
+    std::ifstream file(filePath, std::ios::ate | std::ios::binary);
+
+    assert(file.is_open());
+
+    // find what the size of the file is by looking up the location of the cursor
+    // because the cursor is at the end, it gives the size directly in bytes
+    size_t fileSize = (size_t)file.tellg();
+
+    // spirv expects the buffer to be on uint32, so make sure to reserve a int
+    // vector big enough for the entire file
+    std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
+
+    // put file cursor at beginning
+    file.seekg(0);
+
+    // load the entire file into the buffer
+    file.read((char*)buffer.data(), fileSize);
+
+    // now that the file is loaded into the buffer, we can close it
+    file.close();
+
+    vk::ShaderModuleCreateInfo createInfo{};
+
+    // codeSize has to be in bytes, so multply the ints in the buffer by size of
+    // int to know the real size of the buffer
+    createInfo.setCodeSize(buffer.size() * sizeof(uint32_t));
+    createInfo.setPCode(buffer.data());
+
+    vk::ShaderModule shaderModule{};
+
+    vk::Result result = device.createShaderModule(&createInfo, nullptr, &shaderModule);
+    assert(result == vk::Result::eSuccess);
+
+    *outShaderModule = shaderModule;
 }
 
 void VulkanEngine::transitionImage(vk::CommandBuffer cmd, vk::Image image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout)
@@ -225,7 +267,7 @@ void VulkanEngine::initSwapchain()
     // build a image-view for the draw image to use for rendering
     vk::ImageViewCreateInfo rviewInfo = imageviewCreateInfo(drawImage.imageFormat, drawImage.image, vk::ImageAspectFlagBits::eColor);
 
-    device.createImageView(&rviewInfo, nullptr, &drawImage.imageView);
+    VK_CHECK(device.createImageView(&rviewInfo, nullptr, &drawImage.imageView));
 
     mainDeletionQueue.pushFunction([=]() {
         device.destroyImageView(drawImage.imageView);
@@ -261,6 +303,78 @@ void VulkanEngine::initSyncStructure()
         frames[i].swapchainSemaphore = device.createSemaphore(semaphoreCreateInfo);
         frames[i].renderSemaphore = device.createSemaphore(semaphoreCreateInfo);
     }
+}
+
+void VulkanEngine::initDescriptor()
+{
+    SDL_Log("Vulkan Engine: init descriptor");
+    std::vector<DescriptorAllocator::PoolSizeRatio> sizes{{vk::DescriptorType::eStorageImage, 1.0f}};
+
+    globalDescriptorAllocator.initPool(device, 10, sizes);
+
+    {
+        DescriptorLayoutBuilder builder{};
+        builder.add_binding(0, vk::DescriptorType::eStorageImage);
+        drawImageDescriptorLayout = builder.build(device, vk::ShaderStageFlagBits::eCompute);
+    }
+
+    drawImageDescriptors = globalDescriptorAllocator.allocate(device, drawImageDescriptorLayout);
+
+    vk::DescriptorImageInfo imgInfo{};
+    imgInfo.setImageLayout(vk::ImageLayout::eGeneral);
+    imgInfo.setImageView(drawImage.imageView);
+
+    vk::WriteDescriptorSet drawImageWrite{};
+
+    drawImageWrite.setDstBinding(0);
+    drawImageWrite.setDstSet(drawImageDescriptors);
+    drawImageWrite.setDescriptorCount(1);
+    drawImageWrite.setDescriptorType(vk::DescriptorType::eStorageImage);
+    drawImageWrite.setPImageInfo(&imgInfo);
+
+    device.updateDescriptorSets(1, &drawImageWrite, 0, nullptr);
+
+    mainDeletionQueue.pushFunction([&]() {
+        globalDescriptorAllocator.destroyPool(device);
+
+        device.destroyDescriptorSetLayout(drawImageDescriptorLayout);
+    });
+}
+
+void VulkanEngine::initPipeline()
+{
+    SDL_Log("Vulkan Engine: init pipeline");
+    initBackgroundPipeline();
+}
+
+void VulkanEngine::initBackgroundPipeline()
+{
+    vk::PipelineLayoutCreateInfo computeLayout{};
+    computeLayout.setPSetLayouts(&drawImageDescriptorLayout);
+    computeLayout.setSetLayoutCount(1);
+
+    VK_CHECK(device.createPipelineLayout(&computeLayout, nullptr, &gradientPipelineLayout));
+
+    vk::ShaderModule computeDrawShader{};
+    loadShaderModule("../../../shaders/gradient.comp.spv", device, &computeDrawShader);
+
+    vk::PipelineShaderStageCreateInfo stageInfo{};
+    stageInfo.setStage(vk::ShaderStageFlagBits::eCompute);
+    stageInfo.setModule(computeDrawShader);
+    stageInfo.setPName("main");
+
+    vk::ComputePipelineCreateInfo computePipelineCreateInfo{};
+    computePipelineCreateInfo.setLayout(gradientPipelineLayout);
+    computePipelineCreateInfo.setStage(stageInfo);
+
+    VK_CHECK(device.createComputePipelines(VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradientPipeline));
+
+    device.destroyShaderModule(computeDrawShader);
+
+    mainDeletionQueue.pushFunction([&]() {
+        device.destroyPipelineLayout(gradientPipelineLayout);
+        device.destroyPipeline(gradientPipeline);
+    });
 }
 
 void VulkanEngine::initVulkan()
@@ -371,6 +485,10 @@ void VulkanEngine::initVulkan()
     initCommandBuffer();
 
     initSyncStructure();
+
+    initDescriptor();
+
+    initPipeline();
 }
 
 void VulkanEngine::deinitVulkan()
@@ -404,15 +522,11 @@ void VulkanEngine::deinitVulkan()
 
 void VulkanEngine::drawBackground(vk::CommandBuffer cmd)
 {
-    // make a clear-color from frame number. This will flash with a 120 frame period.
-    vk::ClearColorValue clearValue{};
-    float flash = std::abs(std::sin(frameNumber / 120.0f));
-    clearValue.setFloat32({0.0f, 0.0f, flash, 1.0f});
+    cmd.bindPipeline(vk::PipelineBindPoint::eCompute, gradientPipeline);
 
-    vk::ImageSubresourceRange clearRange = imageSubresourceRange(vk::ImageAspectFlagBits::eColor);
+    cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
 
-    // clear image
-    cmd.clearColorImage(drawImage.image, vk::ImageLayout::eGeneral, &clearValue, 1, &clearRange);
+    cmd.dispatch(std::ceil(drawExtent.width / 16.0f), std::ceil(drawExtent.height / 16.0f), 1);
 }
 
 void VulkanEngine::startup()
@@ -482,7 +596,7 @@ void VulkanEngine::draw()
 
     vk::SubmitInfo2 submit({}, {waitInfo}, {cmdInfo}, {signalInfo});
 
-    graphicsQueue.submit2(1, &submit, getCurrentFrame().renderFence);
+    VK_CHECK(graphicsQueue.submit2(1, &submit, getCurrentFrame().renderFence));
 
     vk::PresentInfoKHR presentInfo{};
     presentInfo.setSwapchains({swapChain});
@@ -491,7 +605,7 @@ void VulkanEngine::draw()
 
     presentInfo.setPImageIndices(&swapchainImageIndex);
 
-    presentQueue.presentKHR(presentInfo);
+    VK_CHECK(presentQueue.presentKHR(presentInfo));
 
     frameNumber++;
 }
