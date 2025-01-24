@@ -34,3 +34,6 @@
 # VSCode
 .vscode
 build
+
+# Compiled Shader
+*.spv
