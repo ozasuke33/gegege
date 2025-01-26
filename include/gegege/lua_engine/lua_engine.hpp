@@ -186,12 +186,15 @@ public:
         pcall();
     }
 
-    void pcall(int nargs = 0, int nresult = 0)
+    bool pcall(int nargs = 0, int nresult = 0)
     {
         if (lua_pcall(L, nargs, nresult, 0) != LUA_OK)
         {
             SDL_Log("Lua Engine: Failed to execute Lua code: %s", popString().c_str());
+            return false;
         }
+
+        return true;
     }
 
     template <typename... Ts>
