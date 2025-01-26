@@ -63,10 +63,10 @@ class VulkanEngine {
     vk::Queue graphicsQueue;
     vk::Queue presentQueue;
     vk::SurfaceKHR surface;
-    vk::SwapchainKHR swapChain;
-    vk::Format swapChainImageFormat;
-    std::vector<vk::Image> swapChainImages;
-    std::vector<vk::ImageView> imageViews;
+    vk::SwapchainKHR swapchain;
+    vk::Format swapchainImageFormat;
+    std::vector<vk::Image> swapchainImages;
+    std::vector<vk::ImageView> swapchainImageViews;
 
     DescriptorAllocator globalDescriptorAllocator;
 

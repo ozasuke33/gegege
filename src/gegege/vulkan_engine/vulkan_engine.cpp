@@ -276,19 +276,19 @@ void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
         swapChainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
     }
 
-    swapChain = device.createSwapchainKHR(swapChainCreateInfo);
+    swapchain = device.createSwapchainKHR(swapChainCreateInfo);
 
-    swapChainImages = device.getSwapchainImagesKHR(swapChain);
+    swapchainImages = device.getSwapchainImagesKHR(swapchain);
 
-    imageViews.reserve(swapChainImages.size());
+    swapchainImageViews.reserve(swapchainImages.size());
     vk::ImageViewCreateInfo imageViewCreateInfo({}, {}, vk::ImageViewType::e2D, format, {}, {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-    for (auto image : swapChainImages)
+    for (auto image : swapchainImages)
     {
         imageViewCreateInfo.image = image;
-        imageViews.push_back(device.createImageView(imageViewCreateInfo));
+        swapchainImageViews.push_back(device.createImageView(imageViewCreateInfo));
     }
 
-    swapChainImageFormat = format;
+    swapchainImageFormat = format;
 }
 
 void VulkanEngine::initSwapchain()
@@ -492,7 +492,7 @@ void VulkanEngine::initImGui()
     // dynamic rendering parameters for imgui to use
     initInfo.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     initInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-    initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = (const VkFormat*)&swapChainImageFormat;
+    initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = (const VkFormat*)&swapchainImageFormat;
 
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
@@ -641,12 +641,12 @@ void VulkanEngine::deinitVulkan()
 
     mainDeletionQueue.flush();
 
-    for (auto& imageView : imageViews)
+    for (auto& imageView : swapchainImageViews)
     {
         device.destroyImageView(imageView);
     }
-    imageViews.clear();
-    device.destroySwapchainKHR(swapChain);
+    swapchainImageViews.clear();
+    device.destroySwapchainKHR(swapchain);
     SDL_Vulkan_DestroySurface(instance, surface, nullptr);
     device.destroy();
     instance.destroy();
@@ -700,7 +700,7 @@ void VulkanEngine::draw()
 
     getCurrentFrame().deletionQueue.flush();
 
-    vk::ResultValue<uint32_t> currentBuffer = device.acquireNextImageKHR(swapChain, fenceTimeout, getCurrentFrame().swapchainSemaphore, nullptr);
+    vk::ResultValue<uint32_t> currentBuffer = device.acquireNextImageKHR(swapchain, fenceTimeout, getCurrentFrame().swapchainSemaphore, nullptr);
     assert(currentBuffer.result == vk::Result::eSuccess);
     uint32_t swapchainImageIndex = currentBuffer.value;
 
@@ -724,17 +724,17 @@ void VulkanEngine::draw()
 
     // transition the draw image and the swapchain image into their correct transfer layouts
     transitionImage(cmd, drawImage.image, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
-    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+    transitionImage(cmd, swapchainImages[swapchainImageIndex], vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
 
-    copyImageToImage(cmd, drawImage.image, swapChainImages[swapchainImageIndex], drawExtent, windowExtent);
+    copyImageToImage(cmd, drawImage.image, swapchainImages[swapchainImageIndex], drawExtent, windowExtent);
 
     // set swapchain image layout to Attachment Optimal so we can draw it
-    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eColorAttachmentOptimal);
+    transitionImage(cmd, swapchainImages[swapchainImageIndex], vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eColorAttachmentOptimal);
 
-    drawImGui(cmd, imageViews[swapchainImageIndex]);
+    drawImGui(cmd, swapchainImageViews[swapchainImageIndex]);
 
     // set swapchain image layout to Present so we can show it on the screen
-    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR);
+    transitionImage(cmd, swapchainImages[swapchainImageIndex], vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR);
 
     cmd.end();
 
@@ -748,7 +748,7 @@ void VulkanEngine::draw()
     VK_CHECK(graphicsQueue.submit2(1, &submit, getCurrentFrame().renderFence));
 
     vk::PresentInfoKHR presentInfo{};
-    presentInfo.setSwapchains({swapChain});
+    presentInfo.setSwapchains({swapchain});
 
     presentInfo.setWaitSemaphores({getCurrentFrame().renderSemaphore});
 
