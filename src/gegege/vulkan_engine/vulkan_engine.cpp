@@ -102,6 +102,10 @@ void VulkanEngine::loadShaderModule(const char* filePath, vk::Device device, vk:
 {
     std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
+    if (!file.is_open())
+    {
+        SDL_Log("Vulkan Engine: Failed to load file: %s", filePath);
+    }
     assert(file.is_open());
 
     // find what the size of the file is by looking up the location of the cursor
