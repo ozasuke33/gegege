@@ -64,6 +64,7 @@ class VulkanEngine {
     vk::Queue presentQueue;
     vk::SurfaceKHR surface;
     vk::SwapchainKHR swapChain;
+    vk::Format swapChainImageFormat;
     std::vector<vk::Image> swapChainImages;
     std::vector<vk::ImageView> imageViews;
 
@@ -74,6 +75,10 @@ class VulkanEngine {
 
     vk::Pipeline gradientPipeline;
     vk::PipelineLayout gradientPipelineLayout;
+
+    vk::Fence immFence;
+    vk::CommandBuffer immCommandBuffer;
+    vk::CommandPool immCommandPool;
 
     AllocatedImage drawImage;
     vk::Extent2D drawExtent;
@@ -93,11 +98,15 @@ class VulkanEngine {
     vk::ImageCreateInfo imageCreateInfo(vk::Format format, vk::ImageUsageFlags usageFlags, vk::Extent3D extent);
     vk::ImageViewCreateInfo imageviewCreateInfo(vk::Format format, vk::Image image, vk::ImageAspectFlagBits aspectFlags);
     vk::ImageSubresourceRange imageSubresourceRange(vk::ImageAspectFlags aspectMask);
+    vk::RenderingAttachmentInfo attachmentInfo(vk::ImageView view, vk::ClearValue* clear, vk::ImageLayout layout = vk::ImageLayout::eColorAttachmentOptimal);
+    vk::RenderingInfo renderingInfo(vk::Extent2D renderExtent, vk::RenderingAttachmentInfo* colorAttachment, vk::RenderingAttachmentInfo* depthAttachment);
 
     void loadShaderModule(const char* filePath, vk::Device device, vk::ShaderModule* outShaderModule);
 
     void transitionImage(vk::CommandBuffer cmd, vk::Image image, vk::ImageLayout currentLayout, vk::ImageLayout newLayout);
     void copyImageToImage(vk::CommandBuffer cmd, vk::Image source, vk::Image destination, vk::Extent2D srcSize, vk::Extent2D dstSize);
+
+    void immediate_submit(std::function<void(vk::CommandBuffer cmd)>&& function);
 
     void createSwapChain(uint32_t width, uint32_t height);
     void initSwapchain();
@@ -106,10 +115,12 @@ class VulkanEngine {
     void initDescriptor();
     void initPipeline();
     void initBackgroundPipeline();
+    void initImGui();
     void initVulkan();
     void deinitVulkan();
 
     void drawBackground(vk::CommandBuffer cmd);
+    void drawImGui(vk::CommandBuffer cmd, vk::ImageView targetImageView);
 
 public:
     void startup();

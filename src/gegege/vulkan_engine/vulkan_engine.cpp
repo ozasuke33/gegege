@@ -2,6 +2,10 @@
 #include <gegege/vulkan_engine/vulkan_engine.hpp>
 #include <gegege/assert.hpp>
 
+#include <imgui.h>
+#include <imgui_impl_sdl3.h>
+#include <imgui_impl_vulkan.h>
+
 #include <vulkan/vulkan.h>
 
 #define VMA_IMPLEMENTATION
@@ -66,6 +70,34 @@ vk::ImageSubresourceRange VulkanEngine::imageSubresourceRange(vk::ImageAspectFla
     return subImage;
 }
 
+vk::RenderingAttachmentInfo VulkanEngine::attachmentInfo(vk::ImageView view, vk::ClearValue* clear, vk::ImageLayout layout)
+{
+    vk::RenderingAttachmentInfo colorAttachment{};
+
+    colorAttachment.setImageView(view);
+    colorAttachment.setImageLayout(layout);
+    colorAttachment.setLoadOp(clear ? vk::AttachmentLoadOp::eClear : vk::AttachmentLoadOp::eLoad);
+    colorAttachment.setStoreOp(vk::AttachmentStoreOp::eStore);
+    if (clear)
+    {
+        colorAttachment.setClearValue(*clear);
+    }
+
+    return colorAttachment;
+}
+
+vk::RenderingInfo VulkanEngine::renderingInfo(vk::Extent2D renderExtent, vk::RenderingAttachmentInfo* colorAttachment, vk::RenderingAttachmentInfo* depthAttachment)
+{
+    vk::RenderingInfo renderInfo{};
+
+    renderInfo.setRenderArea(vk::Rect2D{vk::Offset2D{0, 0}, renderExtent});
+    renderInfo.setLayerCount(1);
+    renderInfo.setColorAttachments({*colorAttachment});
+    renderInfo.setPDepthAttachment(depthAttachment);
+
+    return renderInfo;
+}
+
 void VulkanEngine::loadShaderModule(const char* filePath, vk::Device device, vk::ShaderModule* outShaderModule)
 {
     std::ifstream file(filePath, std::ios::ate | std::ios::binary);
@@ -98,8 +130,7 @@ void VulkanEngine::loadShaderModule(const char* filePath, vk::Device device, vk:
 
     vk::ShaderModule shaderModule{};
 
-    vk::Result result = device.createShaderModule(&createInfo, nullptr, &shaderModule);
-    assert(result == vk::Result::eSuccess);
+    VK_CHECK(device.createShaderModule(&createInfo, nullptr, &shaderModule));
 
     *outShaderModule = shaderModule;
 }
@@ -160,6 +191,28 @@ void VulkanEngine::copyImageToImage(vk::CommandBuffer cmd, vk::Image source, vk:
     blitInfo.setPRegions(&blitRegion);
 
     cmd.blitImage2(&blitInfo);
+}
+
+void VulkanEngine::immediate_submit(std::function<void(vk::CommandBuffer cmd)>&& function)
+{
+    VK_CHECK(device.resetFences(1, &immFence));
+    immCommandBuffer.reset();
+
+    vk::CommandBuffer cmd = immCommandBuffer;
+
+    vk::CommandBufferBeginInfo cmdBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+
+    VK_CHECK(cmd.begin(&cmdBeginInfo));
+
+    function(cmd);
+
+    cmd.end();
+
+    vk::CommandBufferSubmitInfo cmdInfo(cmd);
+    vk::SubmitInfo2 submit({}, {}, {cmdInfo});
+
+    VK_CHECK(graphicsQueue.submit2(1, &submit, immFence));
+    VK_CHECK(device.waitForFences(1, &immFence, true, 9999999999));
 }
 
 void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
@@ -234,6 +287,8 @@ void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
         imageViewCreateInfo.image = image;
         imageViews.push_back(device.createImageView(imageViewCreateInfo));
     }
+
+    swapChainImageFormat = format;
 }
 
 void VulkanEngine::initSwapchain()
@@ -267,7 +322,7 @@ void VulkanEngine::initSwapchain()
     // build a image-view for the draw image to use for rendering
     vk::ImageViewCreateInfo rviewInfo = imageviewCreateInfo(drawImage.imageFormat, drawImage.image, vk::ImageAspectFlagBits::eColor);
 
-    VK_CHECK(device.createImageView(&rviewInfo, nullptr, &drawImage.imageView));
+    drawImage.imageView = device.createImageView(rviewInfo);
 
     mainDeletionQueue.pushFunction([=]() {
         device.destroyImageView(drawImage.imageView);
@@ -287,6 +342,14 @@ void VulkanEngine::initCommandBuffer()
         frames[i].commandPool = device.createCommandPool(createInfo);
         frames[i].mainCommandBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(frames[i].commandPool, vk::CommandBufferLevel::ePrimary, 1)).front();
     }
+
+    immCommandPool = device.createCommandPool(createInfo);
+
+    immCommandBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(immCommandPool, vk::CommandBufferLevel::ePrimary, 1)).front();
+
+    mainDeletionQueue.pushFunction([=]() {
+        device.destroyCommandPool(immCommandPool);
+    });
 }
 
 void VulkanEngine::initSyncStructure()
@@ -303,6 +366,9 @@ void VulkanEngine::initSyncStructure()
         frames[i].swapchainSemaphore = device.createSemaphore(semaphoreCreateInfo);
         frames[i].renderSemaphore = device.createSemaphore(semaphoreCreateInfo);
     }
+
+    immFence = device.createFence(fenceCreateInfo);
+    mainDeletionQueue.pushFunction([=]() { device.destroyFence(immFence); });
 }
 
 void VulkanEngine::initDescriptor()
@@ -353,7 +419,7 @@ void VulkanEngine::initBackgroundPipeline()
     computeLayout.setPSetLayouts(&drawImageDescriptorLayout);
     computeLayout.setSetLayoutCount(1);
 
-    VK_CHECK(device.createPipelineLayout(&computeLayout, nullptr, &gradientPipelineLayout));
+    gradientPipelineLayout = device.createPipelineLayout(computeLayout);
 
     vk::ShaderModule computeDrawShader{};
     loadShaderModule("../../../shaders/gradient.comp.spv", device, &computeDrawShader);
@@ -367,13 +433,77 @@ void VulkanEngine::initBackgroundPipeline()
     computePipelineCreateInfo.setLayout(gradientPipelineLayout);
     computePipelineCreateInfo.setStage(stageInfo);
 
-    VK_CHECK(device.createComputePipelines(VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradientPipeline));
+    gradientPipeline = device.createComputePipelines(VK_NULL_HANDLE, {computePipelineCreateInfo}).value.front();
 
     device.destroyShaderModule(computeDrawShader);
 
     mainDeletionQueue.pushFunction([&]() {
         device.destroyPipelineLayout(gradientPipelineLayout);
         device.destroyPipeline(gradientPipeline);
+    });
+}
+
+void VulkanEngine::initImGui()
+{
+    SDL_Log("Vulkan Engine: init ImGui");
+    // 1: create descriptor pool for IMGUI
+    //  the size of the pool is very oversize, but it's copied from imgui demo
+    //  itself.
+    vk::DescriptorPoolSize poolSizes[11];
+    poolSizes[0] = {VK_DESCRIPTOR_TYPE_SAMPLER, 1000};
+    poolSizes[1] = {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000};
+    poolSizes[2] = {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000};
+    poolSizes[3] = {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000};
+    poolSizes[4] = {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000};
+    poolSizes[5] = {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000};
+    poolSizes[6] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000};
+    poolSizes[7] = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000};
+    poolSizes[8] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000};
+    poolSizes[9] = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000};
+    poolSizes[10] = {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000};
+
+    vk::DescriptorPoolCreateInfo poolInfo{};
+    poolInfo.setFlags(vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet);
+    poolInfo.setMaxSets(1000);
+    poolInfo.setPoolSizes(poolSizes);
+
+    vk::DescriptorPool imguiPool{};
+    imguiPool = device.createDescriptorPool(poolInfo);
+
+    // 2: initialize imgui library
+
+    // this initializes the core structures of imgui
+    ImGui::CreateContext();
+
+    // this initializes imgui for SDL
+    ImGui_ImplSDL3_InitForVulkan(sdlWindow);
+
+    // this initializes imgui for Vulkan
+    ImGui_ImplVulkan_InitInfo initInfo = {};
+    initInfo.Instance = instance;
+    initInfo.PhysicalDevice = physicalDevice;
+    initInfo.Device = device;
+    initInfo.Queue = graphicsQueue;
+    initInfo.DescriptorPool = imguiPool;
+    initInfo.MinImageCount = 3;
+    initInfo.ImageCount = 3;
+    initInfo.UseDynamicRendering = true;
+
+    // dynamic rendering parameters for imgui to use
+    initInfo.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+    initInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+    initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = (const VkFormat*)&swapChainImageFormat;
+
+    initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+    ImGui_ImplVulkan_Init(&initInfo);
+
+    ImGui_ImplVulkan_CreateFontsTexture();
+
+    // add the destroy the imgui created structures
+    mainDeletionQueue.pushFunction([=]() {
+        ImGui_ImplVulkan_Shutdown();
+        device.destroyDescriptorPool(imguiPool);
     });
 }
 
@@ -489,6 +619,8 @@ void VulkanEngine::initVulkan()
     initDescriptor();
 
     initPipeline();
+
+    initImGui();
 }
 
 void VulkanEngine::deinitVulkan()
@@ -527,6 +659,18 @@ void VulkanEngine::drawBackground(vk::CommandBuffer cmd)
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
 
     cmd.dispatch(std::ceil(drawExtent.width / 16.0f), std::ceil(drawExtent.height / 16.0f), 1);
+}
+
+void VulkanEngine::drawImGui(vk::CommandBuffer cmd, vk::ImageView targetImageView)
+{
+    vk::RenderingAttachmentInfo colorAttachment = attachmentInfo(targetImageView, nullptr);
+    vk::RenderingInfo renderInfo = renderingInfo(windowExtent, &colorAttachment, nullptr);
+
+    cmd.beginRendering(&renderInfo);
+
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+
+    cmd.endRendering();
 }
 
 void VulkanEngine::startup()
@@ -584,8 +728,13 @@ void VulkanEngine::draw()
 
     copyImageToImage(cmd, drawImage.image, swapChainImages[swapchainImageIndex], drawExtent, windowExtent);
 
+    // set swapchain image layout to Attachment Optimal so we can draw it
+    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eColorAttachmentOptimal);
+
+    drawImGui(cmd, imageViews[swapchainImageIndex]);
+
     // set swapchain image layout to Present so we can show it on the screen
-    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR);
+    transitionImage(cmd, swapChainImages[swapchainImageIndex], vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR);
 
     cmd.end();
 
@@ -635,16 +784,25 @@ void VulkanEngine::run()
                 SDL_Log("Vulkan Engine: SDL_EVENT_WINDOW_RESTORED is occured");
                 stopRendering = false;
             }
+
+            ImGui_ImplSDL3_ProcessEvent(&ev);
         }
 
         if (stopRendering)
         {
             SDL_Delay(100);
+            continue;
         }
-        else
-        {
-            draw();
-        }
+
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::ShowDemoWindow();
+
+        ImGui::Render();
+
+        draw();
     }
 }
 
