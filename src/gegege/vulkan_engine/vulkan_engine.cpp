@@ -328,7 +328,7 @@ void VulkanEngine::initSwapchain()
 
     drawImage.imageView = device.createImageView(rviewInfo);
 
-    mainDeletionQueue.pushFunction([=]() {
+    mainDeletionQueue.pushFunction([=, this]() {
         device.destroyImageView(drawImage.imageView);
         vmaDestroyImage(allocator, drawImage.image, drawImage.allocation);
     });
@@ -351,7 +351,7 @@ void VulkanEngine::initCommandBuffer()
 
     immCommandBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(immCommandPool, vk::CommandBufferLevel::ePrimary, 1)).front();
 
-    mainDeletionQueue.pushFunction([=]() {
+    mainDeletionQueue.pushFunction([=, this]() {
         device.destroyCommandPool(immCommandPool);
     });
 }
@@ -372,7 +372,7 @@ void VulkanEngine::initSyncStructure()
     }
 
     immFence = device.createFence(fenceCreateInfo);
-    mainDeletionQueue.pushFunction([=]() { device.destroyFence(immFence); });
+    mainDeletionQueue.pushFunction([=, this]() { device.destroyFence(immFence); });
 }
 
 void VulkanEngine::initDescriptor()
@@ -426,7 +426,7 @@ void VulkanEngine::initBackgroundPipeline()
     gradientPipelineLayout = device.createPipelineLayout(computeLayout);
 
     vk::ShaderModule computeDrawShader{};
-    loadShaderModule("../../../shaders/gradient.comp.spv", device, &computeDrawShader);
+    loadShaderModule("../../../../shaders/gradient.comp.spv", device, &computeDrawShader);
 
     vk::PipelineShaderStageCreateInfo stageInfo{};
     stageInfo.setStage(vk::ShaderStageFlagBits::eCompute);
@@ -505,7 +505,7 @@ void VulkanEngine::initImGui()
     ImGui_ImplVulkan_CreateFontsTexture();
 
     // add the destroy the imgui created structures
-    mainDeletionQueue.pushFunction([=]() {
+    mainDeletionQueue.pushFunction([=, this]() {
         ImGui_ImplVulkan_Shutdown();
         device.destroyDescriptorPool(imguiPool);
     });
@@ -699,7 +699,7 @@ void VulkanEngine::startup()
 
 void VulkanEngine::draw()
 {
-    device.waitForFences(getCurrentFrame().renderFence, true, fenceTimeout);
+    VK_CHECK(device.waitForFences(getCurrentFrame().renderFence, true, fenceTimeout));
     device.resetFences(getCurrentFrame().renderFence);
 
     getCurrentFrame().deletionQueue.flush();
