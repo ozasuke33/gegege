@@ -37,3 +37,7 @@ build
 
 # Compiled Shader
 *.spv
+
+# QtCreator
+*.user
+*.autosave
