@@ -765,31 +765,31 @@ void VulkanEngine::draw()
 
 void VulkanEngine::run()
 {
-    SDL_Event ev;
+    SDL_Event e;
     bool bQuit = false;
 
     while (!bQuit)
     {
-        while (SDL_PollEvent(&ev) != 0)
+        while (SDL_PollEvent(&e) != 0)
         {
-            if (ev.type == SDL_EVENT_QUIT)
+            if (e.type == SDL_EVENT_QUIT)
             {
                 SDL_Log("Vulkan Engine: SDL_EVENT_QUIT is occured");
                 bQuit = true;
             }
 
-            if (ev.type == SDL_EVENT_WINDOW_MINIMIZED)
+            if (e.type == SDL_EVENT_WINDOW_MINIMIZED)
             {
                 SDL_Log("Vulkan Engine: SDL_EVENT_WINDOW_MINIMIZED is occured");
                 stopRendering = true;
             }
-            if (ev.type == SDL_EVENT_WINDOW_RESTORED)
+            if (e.type == SDL_EVENT_WINDOW_RESTORED)
             {
                 SDL_Log("Vulkan Engine: SDL_EVENT_WINDOW_RESTORED is occured");
                 stopRendering = false;
             }
 
-            ImGui_ImplSDL3_ProcessEvent(&ev);
+            ImGui_ImplSDL3_ProcessEvent(&e);
         }
 
         if (stopRendering)
