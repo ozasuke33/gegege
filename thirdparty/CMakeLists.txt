@@ -75,3 +75,8 @@ target_include_directories(imgui PUBLIC
     ${imgui_SOURCE_DIR}/backends
 )
 target_link_libraries(imgui PUBLIC Vulkan::Vulkan SDL3::SDL3)
+
+FetchContent_Declare(glm
+    URL https://github.com/g-truc/glm/archive/refs/tags/1.0.1.tar.gz
+)
+FetchContent_MakeAvailable(glm)

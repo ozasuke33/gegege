@@ -423,27 +423,63 @@ void VulkanEngine::initBackgroundPipeline()
     computeLayout.setPSetLayouts(&drawImageDescriptorLayout);
     computeLayout.setSetLayoutCount(1);
 
+    vk::PushConstantRange pushConstant{};
+    pushConstant.setSize(sizeof(ComputePushConstants));
+    pushConstant.setStageFlags(vk::ShaderStageFlagBits::eCompute);
+
+    computeLayout.setPushConstantRanges({pushConstant});
+
     gradientPipelineLayout = device.createPipelineLayout(computeLayout);
 
-    vk::ShaderModule computeDrawShader{};
-    loadShaderModule("../../../../shaders/gradient.comp.spv", device, &computeDrawShader);
+    vk::ShaderModule gradientShader{};
+    loadShaderModule("../../../../shaders/gradient_color.comp.spv", device, &gradientShader);
+
+    vk::ShaderModule skyShader{};
+    loadShaderModule("../../../../shaders/sky.comp.spv", device, &skyShader);
 
     vk::PipelineShaderStageCreateInfo stageInfo{};
     stageInfo.setStage(vk::ShaderStageFlagBits::eCompute);
-    stageInfo.setModule(computeDrawShader);
+    stageInfo.setModule(gradientShader);
     stageInfo.setPName("main");
 
     vk::ComputePipelineCreateInfo computePipelineCreateInfo{};
     computePipelineCreateInfo.setLayout(gradientPipelineLayout);
     computePipelineCreateInfo.setStage(stageInfo);
 
-    gradientPipeline = device.createComputePipelines(VK_NULL_HANDLE, {computePipelineCreateInfo}).value.front();
+    ComputeEffect gradient{};
+    gradient.layout = gradientPipelineLayout;
+    gradient.name = "gradient";
+    gradient.data = {};
 
-    device.destroyShaderModule(computeDrawShader);
+    // default colors
+    gradient.data.data1 = glm::vec4(1, 0, 0, 1);
+    gradient.data.data2 = glm::vec4(0, 0, 1, 1);
 
-    mainDeletionQueue.pushFunction([&]() {
+    gradient.pipeline = device.createComputePipelines(VK_NULL_HANDLE, {computePipelineCreateInfo}).value.front();
+
+    // change the shader module only to create the sky shader
+    computePipelineCreateInfo.stage.module = skyShader;
+
+    ComputeEffect sky;
+    sky.layout = gradientPipelineLayout;
+    sky.name = "sky";
+    sky.data = {};
+    // default sky parameters
+    sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
+
+    sky.pipeline = device.createComputePipelines(VK_NULL_HANDLE, {computePipelineCreateInfo}).value.front();
+
+    // add the 2 background effects into the array
+    backgroundEffects.push_back(gradient);
+    backgroundEffects.push_back(sky);
+
+    device.destroyShaderModule(gradientShader);
+    device.destroyShaderModule(skyShader);
+
+    mainDeletionQueue.pushFunction([=, this]() {
         device.destroyPipelineLayout(gradientPipelineLayout);
-        device.destroyPipeline(gradientPipeline);
+        device.destroyPipeline(sky.pipeline);
+        device.destroyPipeline(gradient.pipeline);
     });
 }
 
@@ -658,9 +694,13 @@ void VulkanEngine::deinitVulkan()
 
 void VulkanEngine::drawBackground(vk::CommandBuffer cmd)
 {
-    cmd.bindPipeline(vk::PipelineBindPoint::eCompute, gradientPipeline);
+    ComputeEffect& effect = backgroundEffects[currentBackgroundEffect];
+
+    cmd.bindPipeline(vk::PipelineBindPoint::eCompute, effect.pipeline);
 
     cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
+
+    cmd.pushConstants(gradientPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(ComputePushConstants), &effect.data);
 
     cmd.dispatch(std::ceil(drawExtent.width / 16.0f), std::ceil(drawExtent.height / 16.0f), 1);
 }
@@ -802,7 +842,20 @@ void VulkanEngine::run()
         ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::ShowDemoWindow();
+        if (ImGui::Begin("background"))
+        {
+            ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
+
+            ImGui::Text("Selected effect: ", selected.name);
+
+            ImGui::SliderInt("Effect index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
+
+            ImGui::InputFloat4("data1", (float*)&selected.data.data1);
+            ImGui::InputFloat4("data2", (float*)&selected.data.data2);
+            ImGui::InputFloat4("data3", (float*)&selected.data.data3);
+            ImGui::InputFloat4("data4", (float*)&selected.data.data4);
+        }
+        ImGui::End();
 
         ImGui::Render();
 

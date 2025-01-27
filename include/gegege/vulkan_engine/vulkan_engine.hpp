@@ -6,6 +6,8 @@
 #include <vulkan/vulkan.hpp>
 #include <vk_mem_alloc.h>
 
+#include <glm/glm.hpp>
+
 #include <functional>
 #include <vector>
 
@@ -42,6 +44,22 @@ struct FrameData {
     DeletionQueue deletionQueue;
 };
 
+struct ComputePushConstants {
+    glm::vec4 data1;
+    glm::vec4 data2;
+    glm::vec4 data3;
+    glm::vec4 data4;
+};
+
+struct ComputeEffect {
+    const char* name;
+
+    VkPipeline pipeline;
+    VkPipelineLayout layout;
+
+    ComputePushConstants data;
+};
+
 struct AllocatedImage {
     vk::Image image;
     vk::ImageView imageView;
@@ -73,7 +91,6 @@ class VulkanEngine {
     vk::DescriptorSet drawImageDescriptors;
     vk::DescriptorSetLayout drawImageDescriptorLayout;
 
-    vk::Pipeline gradientPipeline;
     vk::PipelineLayout gradientPipelineLayout;
 
     vk::Fence immFence;
@@ -86,6 +103,9 @@ class VulkanEngine {
     FrameData frames[FRAME_OVERLAP];
     uint32_t frameNumber;
     FrameData& getCurrentFrame() { return frames[frameNumber % FRAME_OVERLAP]; }
+
+    std::vector<ComputeEffect> backgroundEffects;
+    int currentBackgroundEffect{0};
 
     DeletionQueue mainDeletionQueue;
 
