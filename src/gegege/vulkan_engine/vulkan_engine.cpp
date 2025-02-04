@@ -199,10 +199,10 @@ void VulkanEngine::copyImageToImage(vk::CommandBuffer cmd, vk::Image source, vk:
 
 void VulkanEngine::immediate_submit(std::function<void(vk::CommandBuffer cmd)>&& function)
 {
-    VK_CHECK(device.resetFences(1, &immFence));
-    immCommandBuffer.reset();
+    VK_CHECK(mDevice.resetFences(1, &mImmFence));
+    mImmCommandBuffer.reset();
 
-    vk::CommandBuffer cmd = immCommandBuffer;
+    vk::CommandBuffer cmd = mImmCommandBuffer;
 
     vk::CommandBufferBeginInfo cmdBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
@@ -215,18 +215,18 @@ void VulkanEngine::immediate_submit(std::function<void(vk::CommandBuffer cmd)>&&
     vk::CommandBufferSubmitInfo cmdInfo(cmd);
     vk::SubmitInfo2 submit({}, {}, {cmdInfo});
 
-    VK_CHECK(graphicsQueue.submit2(1, &submit, immFence));
-    VK_CHECK(device.waitForFences(1, &immFence, true, 9999999999));
+    VK_CHECK(mGraphicsQueue.submit2(1, &submit, mImmFence));
+    VK_CHECK(mDevice.waitForFences(1, &mImmFence, true, 9999999999));
 }
 
 void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
 {
     SDL_Log("Vulkan Engine: create SwapChain");
-    std::vector<vk::SurfaceFormatKHR> formats = physicalDevice.getSurfaceFormatsKHR(surface);
+    std::vector<vk::SurfaceFormatKHR> formats = mPhysicalDevice.getSurfaceFormatsKHR(mSurface);
     assert(!formats.empty());
     vk::Format format = (formats[0].format == vk::Format::eUndefined) ? vk::Format::eB8G8R8A8Unorm : formats[0].format;
 
-    vk::SurfaceCapabilitiesKHR surfaceCapabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+    vk::SurfaceCapabilitiesKHR surfaceCapabilities = mPhysicalDevice.getSurfaceCapabilitiesKHR(mSurface);
     vk::Extent2D swapchainExtent;
     if (surfaceCapabilities.currentExtent.width == (std::numeric_limits<uint32_t>::max)())
     {
@@ -254,7 +254,7 @@ void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
                                                                                                          : vk::CompositeAlphaFlagBitsKHR::eOpaque;
 
     vk::SwapchainCreateInfoKHR swapChainCreateInfo(vk::SwapchainCreateFlagsKHR(),
-                                                   surface,
+                                                   mSurface,
                                                    SDL_clamp(3u, surfaceCapabilities.minImageCount, surfaceCapabilities.maxImageCount),
                                                    format,
                                                    vk::ColorSpaceKHR::eSrgbNonlinear,
@@ -269,9 +269,9 @@ void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
                                                    true,
                                                    nullptr);
 
-    if (graphicsQueueFamilyIndex != presentQueueFamilyIndex)
+    if (mGraphicsQueueFamilyIndex != mPresentQueueFamilyIndex)
     {
-        uint32_t queueFamilyIndices[2] = {graphicsQueueFamilyIndex, presentQueueFamilyIndex};
+        uint32_t queueFamilyIndices[2] = {mGraphicsQueueFamilyIndex, mPresentQueueFamilyIndex};
         // If the graphics and present queues are from different queue families, we either have to explicitly transfer
         // ownership of images between the queues, or we have to create the swapchain with imageSharingMode as
         // vk::SharingMode::eConcurrent
@@ -280,32 +280,32 @@ void VulkanEngine::createSwapChain(uint32_t width, uint32_t height)
         swapChainCreateInfo.pQueueFamilyIndices = queueFamilyIndices;
     }
 
-    swapchain = device.createSwapchainKHR(swapChainCreateInfo);
+    mSwapchain = mDevice.createSwapchainKHR(swapChainCreateInfo);
 
-    swapchainImages = device.getSwapchainImagesKHR(swapchain);
+    mSwapchainImages = mDevice.getSwapchainImagesKHR(mSwapchain);
 
-    swapchainImageViews.reserve(swapchainImages.size());
+    mSwapchainImageViews.reserve(mSwapchainImages.size());
     vk::ImageViewCreateInfo imageViewCreateInfo({}, {}, vk::ImageViewType::e2D, format, {}, {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1});
-    for (auto image : swapchainImages)
+    for (auto image : mSwapchainImages)
     {
         imageViewCreateInfo.image = image;
-        swapchainImageViews.push_back(device.createImageView(imageViewCreateInfo));
+        mSwapchainImageViews.push_back(mDevice.createImageView(imageViewCreateInfo));
     }
 
-    swapchainImageFormat = format;
+    mSwapchainImageFormat = format;
 }
 
 void VulkanEngine::initSwapchain()
 {
-    createSwapChain(windowExtent.width, windowExtent.height);
+    createSwapChain(mWindowExtent.width, mWindowExtent.height);
 
     vk::Extent3D drawImageExtent = {
-        windowExtent.width,
-        windowExtent.height,
+        mWindowExtent.width,
+        mWindowExtent.height,
         1};
 
-    drawImage.imageFormat = vk::Format::eR16G16B16A16Sfloat;
-    drawImage.imageExtent = drawImageExtent;
+    mDrawImage.mImageFormat = vk::Format::eR16G16B16A16Sfloat;
+    mDrawImage.mImageExtent = drawImageExtent;
 
     vk::ImageUsageFlags drawImageUsages{};
     drawImageUsages |= vk::ImageUsageFlagBits::eTransferSrc;
@@ -313,7 +313,7 @@ void VulkanEngine::initSwapchain()
     drawImageUsages |= vk::ImageUsageFlagBits::eStorage;
     drawImageUsages |= vk::ImageUsageFlagBits::eColorAttachment;
 
-    vk::ImageCreateInfo rimgInfo = imageCreateInfo(drawImage.imageFormat, drawImageUsages, drawImageExtent);
+    vk::ImageCreateInfo rimgInfo = imageCreateInfo(mDrawImage.mImageFormat, drawImageUsages, drawImageExtent);
 
     // for the draw image, we want to allocate it from gpu local memory
     VmaAllocationCreateInfo rimgAllocInfo{};
@@ -321,16 +321,16 @@ void VulkanEngine::initSwapchain()
     rimgAllocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     // allocate and create the image
-    vmaCreateImage(allocator, (const VkImageCreateInfo*)(&rimgInfo), (const VmaAllocationCreateInfo*)(&rimgAllocInfo), (VkImage*)&drawImage.image, &drawImage.allocation, nullptr);
+    vmaCreateImage(mAllocator, (const VkImageCreateInfo*)(&rimgInfo), (const VmaAllocationCreateInfo*)(&rimgAllocInfo), (VkImage*)&mDrawImage.mImage, &mDrawImage.mAllocation, nullptr);
 
-    // build a image-view for the draw image to use for rendering
-    vk::ImageViewCreateInfo rviewInfo = imageviewCreateInfo(drawImage.imageFormat, drawImage.image, vk::ImageAspectFlagBits::eColor);
+    // build a mImage-view for the draw mImage to use for rendering
+    vk::ImageViewCreateInfo rviewInfo = imageviewCreateInfo(mDrawImage.mImageFormat, mDrawImage.mImage, vk::ImageAspectFlagBits::eColor);
 
-    drawImage.imageView = device.createImageView(rviewInfo);
+    mDrawImage.mImageView = mDevice.createImageView(rviewInfo);
 
-    mainDeletionQueue.pushFunction([=, this]() {
-        device.destroyImageView(drawImage.imageView);
-        vmaDestroyImage(allocator, drawImage.image, drawImage.allocation);
+    mMainDeletionQueue.pushFunction([=, this]() {
+        mDevice.destroyImageView(mDrawImage.mImageView);
+        vmaDestroyImage(mAllocator, mDrawImage.mImage, mDrawImage.mAllocation);
     });
 }
 
@@ -338,21 +338,21 @@ void VulkanEngine::initCommandBuffer()
 {
     SDL_Log("Vulkan Engine: init command buffer");
     vk::CommandPoolCreateInfo createInfo{};
-    createInfo.setQueueFamilyIndex(graphicsQueueFamilyIndex);
+    createInfo.setQueueFamilyIndex(mGraphicsQueueFamilyIndex);
     createInfo.setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
 
     for (int i = 0; i < FRAME_OVERLAP; ++i)
     {
-        frames[i].commandPool = device.createCommandPool(createInfo);
-        frames[i].mainCommandBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(frames[i].commandPool, vk::CommandBufferLevel::ePrimary, 1)).front();
+        mFrames[i].mCommandPool = mDevice.createCommandPool(createInfo);
+        mFrames[i].mMainCommandBuffer = mDevice.allocateCommandBuffers(vk::CommandBufferAllocateInfo(mFrames[i].mCommandPool, vk::CommandBufferLevel::ePrimary, 1)).front();
     }
 
-    immCommandPool = device.createCommandPool(createInfo);
+    mImmCommandPool = mDevice.createCommandPool(createInfo);
 
-    immCommandBuffer = device.allocateCommandBuffers(vk::CommandBufferAllocateInfo(immCommandPool, vk::CommandBufferLevel::ePrimary, 1)).front();
+    mImmCommandBuffer = mDevice.allocateCommandBuffers(vk::CommandBufferAllocateInfo(mImmCommandPool, vk::CommandBufferLevel::ePrimary, 1)).front();
 
-    mainDeletionQueue.pushFunction([=, this]() {
-        device.destroyCommandPool(immCommandPool);
+    mMainDeletionQueue.pushFunction([=, this]() {
+        mDevice.destroyCommandPool(mImmCommandPool);
     });
 }
 
@@ -365,14 +365,14 @@ void VulkanEngine::initSyncStructure()
 
     for (int i = 0; i < FRAME_OVERLAP; ++i)
     {
-        frames[i].renderFence = device.createFence(fenceCreateInfo);
+        mFrames[i].mRenderFence = mDevice.createFence(fenceCreateInfo);
 
-        frames[i].swapchainSemaphore = device.createSemaphore(semaphoreCreateInfo);
-        frames[i].renderSemaphore = device.createSemaphore(semaphoreCreateInfo);
+        mFrames[i].mSwapchainSemaphore = mDevice.createSemaphore(semaphoreCreateInfo);
+        mFrames[i].mRenderSemaphore = mDevice.createSemaphore(semaphoreCreateInfo);
     }
 
-    immFence = device.createFence(fenceCreateInfo);
-    mainDeletionQueue.pushFunction([=, this]() { device.destroyFence(immFence); });
+    mImmFence = mDevice.createFence(fenceCreateInfo);
+    mMainDeletionQueue.pushFunction([=, this]() { mDevice.destroyFence(mImmFence); });
 }
 
 void VulkanEngine::initDescriptor()
@@ -380,34 +380,34 @@ void VulkanEngine::initDescriptor()
     SDL_Log("Vulkan Engine: init descriptor");
     std::vector<DescriptorAllocator::PoolSizeRatio> sizes{{vk::DescriptorType::eStorageImage, 1.0f}};
 
-    globalDescriptorAllocator.initPool(device, 10, sizes);
+    mGlobalDescriptorAllocator.initPool(mDevice, 10, sizes);
 
     {
         DescriptorLayoutBuilder builder{};
         builder.add_binding(0, vk::DescriptorType::eStorageImage);
-        drawImageDescriptorLayout = builder.build(device, vk::ShaderStageFlagBits::eCompute);
+        mDrawImageDescriptorLayout = builder.build(mDevice, vk::ShaderStageFlagBits::eCompute);
     }
 
-    drawImageDescriptors = globalDescriptorAllocator.allocate(device, drawImageDescriptorLayout);
+    mDrawImageDescriptors = mGlobalDescriptorAllocator.allocate(mDevice, mDrawImageDescriptorLayout);
 
     vk::DescriptorImageInfo imgInfo{};
     imgInfo.setImageLayout(vk::ImageLayout::eGeneral);
-    imgInfo.setImageView(drawImage.imageView);
+    imgInfo.setImageView(mDrawImage.mImageView);
 
     vk::WriteDescriptorSet drawImageWrite{};
 
     drawImageWrite.setDstBinding(0);
-    drawImageWrite.setDstSet(drawImageDescriptors);
+    drawImageWrite.setDstSet(mDrawImageDescriptors);
     drawImageWrite.setDescriptorCount(1);
     drawImageWrite.setDescriptorType(vk::DescriptorType::eStorageImage);
     drawImageWrite.setPImageInfo(&imgInfo);
 
-    device.updateDescriptorSets(1, &drawImageWrite, 0, nullptr);
+    mDevice.updateDescriptorSets(1, &drawImageWrite, 0, nullptr);
 
-    mainDeletionQueue.pushFunction([&]() {
-        globalDescriptorAllocator.destroyPool(device);
+    mMainDeletionQueue.pushFunction([&]() {
+        mGlobalDescriptorAllocator.destroyPool(mDevice);
 
-        device.destroyDescriptorSetLayout(drawImageDescriptorLayout);
+        mDevice.destroyDescriptorSetLayout(mDrawImageDescriptorLayout);
     });
 }
 
@@ -420,7 +420,7 @@ void VulkanEngine::initPipeline()
 void VulkanEngine::initBackgroundPipeline()
 {
     vk::PipelineLayoutCreateInfo computeLayout{};
-    computeLayout.setPSetLayouts(&drawImageDescriptorLayout);
+    computeLayout.setPSetLayouts(&mDrawImageDescriptorLayout);
     computeLayout.setSetLayoutCount(1);
 
     vk::PushConstantRange pushConstant{};
@@ -429,13 +429,13 @@ void VulkanEngine::initBackgroundPipeline()
 
     computeLayout.setPushConstantRanges({pushConstant});
 
-    gradientPipelineLayout = device.createPipelineLayout(computeLayout);
+    mGradientPipelineLayout = mDevice.createPipelineLayout(computeLayout);
 
     vk::ShaderModule gradientShader{};
-    loadShaderModule("../../../../shaders/gradient_color.comp.spv", device, &gradientShader);
+    loadShaderModule("../../../../shaders/gradient_color.comp.spv", mDevice, &gradientShader);
 
     vk::ShaderModule skyShader{};
-    loadShaderModule("../../../../shaders/sky.comp.spv", device, &skyShader);
+    loadShaderModule("../../../../shaders/sky.comp.spv", mDevice, &skyShader);
 
     vk::PipelineShaderStageCreateInfo stageInfo{};
     stageInfo.setStage(vk::ShaderStageFlagBits::eCompute);
@@ -443,43 +443,43 @@ void VulkanEngine::initBackgroundPipeline()
     stageInfo.setPName("main");
 
     vk::ComputePipelineCreateInfo computePipelineCreateInfo{};
-    computePipelineCreateInfo.setLayout(gradientPipelineLayout);
+    computePipelineCreateInfo.setLayout(mGradientPipelineLayout);
     computePipelineCreateInfo.setStage(stageInfo);
 
     ComputeEffect gradient{};
-    gradient.layout = gradientPipelineLayout;
-    gradient.name = "gradient";
-    gradient.data = {};
+    gradient.mLayout = mGradientPipelineLayout;
+    gradient.mName = "gradient";
+    gradient.mData = {};
 
     // default colors
-    gradient.data.data1 = glm::vec4(1, 0, 0, 1);
-    gradient.data.data2 = glm::vec4(0, 0, 1, 1);
+    gradient.mData.mData1 = glm::vec4(1, 0, 0, 1);
+    gradient.mData.mData2 = glm::vec4(0, 0, 1, 1);
 
-    gradient.pipeline = device.createComputePipelines(VK_NULL_HANDLE, {computePipelineCreateInfo}).value.front();
+    gradient.mPipeline = mDevice.createComputePipelines(VK_NULL_HANDLE, {computePipelineCreateInfo}).value.front();
 
     // change the shader module only to create the sky shader
     computePipelineCreateInfo.stage.module = skyShader;
 
     ComputeEffect sky;
-    sky.layout = gradientPipelineLayout;
-    sky.name = "sky";
-    sky.data = {};
+    sky.mLayout = mGradientPipelineLayout;
+    sky.mName = "sky";
+    sky.mData = {};
     // default sky parameters
-    sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
+    sky.mData.mData1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
 
-    sky.pipeline = device.createComputePipelines(VK_NULL_HANDLE, {computePipelineCreateInfo}).value.front();
+    sky.mPipeline = mDevice.createComputePipelines(VK_NULL_HANDLE, {computePipelineCreateInfo}).value.front();
 
     // add the 2 background effects into the array
-    backgroundEffects.push_back(gradient);
-    backgroundEffects.push_back(sky);
+    mBackgroundEffects.push_back(gradient);
+    mBackgroundEffects.push_back(sky);
 
-    device.destroyShaderModule(gradientShader);
-    device.destroyShaderModule(skyShader);
+    mDevice.destroyShaderModule(gradientShader);
+    mDevice.destroyShaderModule(skyShader);
 
-    mainDeletionQueue.pushFunction([=, this]() {
-        device.destroyPipelineLayout(gradientPipelineLayout);
-        device.destroyPipeline(sky.pipeline);
-        device.destroyPipeline(gradient.pipeline);
+    mMainDeletionQueue.pushFunction([=, this]() {
+        mDevice.destroyPipelineLayout(mGradientPipelineLayout);
+        mDevice.destroyPipeline(sky.mPipeline);
+        mDevice.destroyPipeline(gradient.mPipeline);
     });
 }
 
@@ -508,7 +508,7 @@ void VulkanEngine::initImGui()
     poolInfo.setPoolSizes(poolSizes);
 
     vk::DescriptorPool imguiPool{};
-    imguiPool = device.createDescriptorPool(poolInfo);
+    imguiPool = mDevice.createDescriptorPool(poolInfo);
 
     // 2: initialize imgui library
 
@@ -516,14 +516,14 @@ void VulkanEngine::initImGui()
     ImGui::CreateContext();
 
     // this initializes imgui for SDL
-    ImGui_ImplSDL3_InitForVulkan(sdlWindow);
+    ImGui_ImplSDL3_InitForVulkan(mSdlWindow);
 
     // this initializes imgui for Vulkan
     ImGui_ImplVulkan_InitInfo initInfo = {};
-    initInfo.Instance = instance;
-    initInfo.PhysicalDevice = physicalDevice;
-    initInfo.Device = device;
-    initInfo.Queue = graphicsQueue;
+    initInfo.Instance = mInstance;
+    initInfo.PhysicalDevice = mPhysicalDevice;
+    initInfo.Device = mDevice;
+    initInfo.Queue = mGraphicsQueue;
     initInfo.DescriptorPool = imguiPool;
     initInfo.MinImageCount = 3;
     initInfo.ImageCount = 3;
@@ -532,7 +532,7 @@ void VulkanEngine::initImGui()
     // dynamic rendering parameters for imgui to use
     initInfo.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
     initInfo.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-    initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = (const VkFormat*)&swapchainImageFormat;
+    initInfo.PipelineRenderingCreateInfo.pColorAttachmentFormats = (const VkFormat*)&mSwapchainImageFormat;
 
     initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
@@ -541,9 +541,9 @@ void VulkanEngine::initImGui()
     ImGui_ImplVulkan_CreateFontsTexture();
 
     // add the destroy the imgui created structures
-    mainDeletionQueue.pushFunction([=, this]() {
+    mMainDeletionQueue.pushFunction([=, this]() {
         ImGui_ImplVulkan_Shutdown();
-        device.destroyDescriptorPool(imguiPool);
+        mDevice.destroyDescriptorPool(imguiPool);
     });
 }
 
@@ -566,63 +566,63 @@ void VulkanEngine::initVulkan()
 
     vk::ApplicationInfo appInfo("", 1, "gegege", 1, VK_API_VERSION_1_3);
     vk::InstanceCreateInfo instanceCreateInfo({}, &appInfo, instanceLayerNames, ext);
-    instance = vk::createInstance(instanceCreateInfo);
+    mInstance = vk::createInstance(instanceCreateInfo);
 
-    if (!SDL_Vulkan_CreateSurface(sdlWindow, instance, nullptr, (VkSurfaceKHR*)&surface))
+    if (!SDL_Vulkan_CreateSurface(mSdlWindow, mInstance, nullptr, (VkSurfaceKHR*)&mSurface))
     {
         SDL_Log("Vulkan Engine: Couldn't create surface: %s", SDL_GetError());
         abort();
     }
 
-    physicalDevice = instance.enumeratePhysicalDevices().front();
+    mPhysicalDevice = mInstance.enumeratePhysicalDevices().front();
 
-    SDL_Log("Vulkan Engine: device name: %s", physicalDevice.getProperties().deviceName);
-    SDL_Log("Vulkan Engine: Vulkan version: %d.%d.%d", VK_API_VERSION_MAJOR(physicalDevice.getProperties().apiVersion), VK_API_VERSION_MINOR(physicalDevice.getProperties().apiVersion), VK_API_VERSION_PATCH(physicalDevice.getProperties().apiVersion));
-    SDL_Log("Vulkan Engine: driver version: %d.%d.%d", VK_API_VERSION_MAJOR(physicalDevice.getProperties().driverVersion), VK_API_VERSION_MINOR(physicalDevice.getProperties().driverVersion), VK_API_VERSION_PATCH(physicalDevice.getProperties().driverVersion));
+    SDL_Log("Vulkan Engine: device name: %s", mPhysicalDevice.getProperties().deviceName);
+    SDL_Log("Vulkan Engine: Vulkan version: %d.%d.%d", VK_API_VERSION_MAJOR(mPhysicalDevice.getProperties().apiVersion), VK_API_VERSION_MINOR(mPhysicalDevice.getProperties().apiVersion), VK_API_VERSION_PATCH(mPhysicalDevice.getProperties().apiVersion));
+    SDL_Log("Vulkan Engine: driver version: %d.%d.%d", VK_API_VERSION_MAJOR(mPhysicalDevice.getProperties().driverVersion), VK_API_VERSION_MINOR(mPhysicalDevice.getProperties().driverVersion), VK_API_VERSION_PATCH(mPhysicalDevice.getProperties().driverVersion));
 
-    std::vector<vk::QueueFamilyProperties> queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
+    std::vector<vk::QueueFamilyProperties> queueFamilyProperties = mPhysicalDevice.getQueueFamilyProperties();
 
     auto propertyIterator = std::find_if(queueFamilyProperties.begin(),
                                          queueFamilyProperties.end(),
                                          [](vk::QueueFamilyProperties const& qfp) { return qfp.queueFlags & vk::QueueFlagBits::eGraphics; });
     assert(propertyIterator != queueFamilyProperties.end());
-    graphicsQueueFamilyIndex = static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(), propertyIterator));
+    mGraphicsQueueFamilyIndex = static_cast<uint32_t>(std::distance(queueFamilyProperties.begin(), propertyIterator));
 
-    presentQueueFamilyIndex = physicalDevice.getSurfaceSupportKHR(graphicsQueueFamilyIndex, surface)
-                                  ? graphicsQueueFamilyIndex
+    mPresentQueueFamilyIndex = mPhysicalDevice.getSurfaceSupportKHR(mGraphicsQueueFamilyIndex, mSurface)
+                                  ? mGraphicsQueueFamilyIndex
                                   : queueFamilyProperties.size();
-    if (presentQueueFamilyIndex == queueFamilyProperties.size())
+    if (mPresentQueueFamilyIndex == queueFamilyProperties.size())
     {
         for (uint32_t i = 0; i < queueFamilyProperties.size(); i++)
         {
             if ((queueFamilyProperties[i].queueFlags & vk::QueueFlagBits::eGraphics) &&
-                physicalDevice.getSurfaceSupportKHR(i, surface))
+                mPhysicalDevice.getSurfaceSupportKHR(i, mSurface))
             {
-                graphicsQueueFamilyIndex = i;
-                presentQueueFamilyIndex = i;
+                mGraphicsQueueFamilyIndex = i;
+                mPresentQueueFamilyIndex = i;
                 break;
             }
         }
-        if (presentQueueFamilyIndex == queueFamilyProperties.size())
+        if (mPresentQueueFamilyIndex == queueFamilyProperties.size())
         {
             for (uint32_t i = 0; i < queueFamilyProperties.size(); i++)
             {
-                if (physicalDevice.getSurfaceSupportKHR(i, surface))
+                if (mPhysicalDevice.getSurfaceSupportKHR(i, mSurface))
                 {
-                    presentQueueFamilyIndex = i;
+                    mPresentQueueFamilyIndex = i;
                     break;
                 }
             }
         }
     }
-    if ((graphicsQueueFamilyIndex == queueFamilyProperties.size()) || (presentQueueFamilyIndex == queueFamilyProperties.size()))
+    if ((mGraphicsQueueFamilyIndex == queueFamilyProperties.size()) || (mPresentQueueFamilyIndex == queueFamilyProperties.size()))
     {
         SDL_Log("Vulkan Engine: Couldn't find a queue for graphics or present");
         abort();
     }
 
     float queuePriority = 0.0f;
-    vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), graphicsQueueFamilyIndex, 1, &queuePriority);
+    vk::DeviceQueueCreateInfo deviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), mGraphicsQueueFamilyIndex, 1, &queuePriority);
     std::vector<const char*> deviceExt = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
     vk::PhysicalDeviceVulkan12Features features12{};
@@ -634,20 +634,20 @@ void VulkanEngine::initVulkan()
 
     features12.setPNext(&features13);
 
-    device = physicalDevice.createDevice(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), deviceQueueCreateInfo, {}, deviceExt, {}, &features12));
+    mDevice = mPhysicalDevice.createDevice(vk::DeviceCreateInfo(vk::DeviceCreateFlags(), deviceQueueCreateInfo, {}, deviceExt, {}, &features12));
 
-    graphicsQueue = device.getQueue(graphicsQueueFamilyIndex, 0);
-    presentQueue = device.getQueue(presentQueueFamilyIndex, 0);
+    mGraphicsQueue = mDevice.getQueue(mGraphicsQueueFamilyIndex, 0);
+    mPresentQueue = mDevice.getQueue(mPresentQueueFamilyIndex, 0);
 
     VmaAllocatorCreateInfo allocatorInfo{};
-    allocatorInfo.physicalDevice = physicalDevice;
-    allocatorInfo.device = device;
-    allocatorInfo.instance = instance;
+    allocatorInfo.physicalDevice = mPhysicalDevice;
+    allocatorInfo.device = mDevice;
+    allocatorInfo.instance = mInstance;
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-    vmaCreateAllocator(&allocatorInfo, &allocator);
+    vmaCreateAllocator(&allocatorInfo, &mAllocator);
 
-    mainDeletionQueue.pushFunction([&]() {
-        vmaDestroyAllocator(allocator);
+    mMainDeletionQueue.pushFunction([&]() {
+        vmaDestroyAllocator(mAllocator);
     });
 
     initSwapchain();
@@ -666,49 +666,49 @@ void VulkanEngine::initVulkan()
 void VulkanEngine::deinitVulkan()
 {
     SDL_Log("Vulkan Engine: finalize Vulkan");
-    device.waitIdle();
+    mDevice.waitIdle();
 
     for (int i = 0; i < FRAME_OVERLAP; ++i)
     {
-        device.destroyCommandPool(frames[i].commandPool);
+        mDevice.destroyCommandPool(mFrames[i].mCommandPool);
 
-        device.destroyFence(frames[i].renderFence);
-        device.destroySemaphore(frames[i].swapchainSemaphore);
-        device.destroySemaphore(frames[i].renderSemaphore);
+        mDevice.destroyFence(mFrames[i].mRenderFence);
+        mDevice.destroySemaphore(mFrames[i].mSwapchainSemaphore);
+        mDevice.destroySemaphore(mFrames[i].mRenderSemaphore);
 
-        frames[i].deletionQueue.flush();
+        mFrames[i].mDeletionQueue.flush();
     }
 
-    mainDeletionQueue.flush();
+    mMainDeletionQueue.flush();
 
-    for (auto& imageView : swapchainImageViews)
+    for (auto& imageView : mSwapchainImageViews)
     {
-        device.destroyImageView(imageView);
+        mDevice.destroyImageView(imageView);
     }
-    swapchainImageViews.clear();
-    device.destroySwapchainKHR(swapchain);
-    SDL_Vulkan_DestroySurface(instance, surface, nullptr);
-    device.destroy();
-    instance.destroy();
+    mSwapchainImageViews.clear();
+    mDevice.destroySwapchainKHR(mSwapchain);
+    SDL_Vulkan_DestroySurface(mInstance, mSurface, nullptr);
+    mDevice.destroy();
+    mInstance.destroy();
 }
 
 void VulkanEngine::drawBackground(vk::CommandBuffer cmd)
 {
-    ComputeEffect& effect = backgroundEffects[currentBackgroundEffect];
+    ComputeEffect& effect = mBackgroundEffects[mCurrentBackgroundEffect];
 
-    cmd.bindPipeline(vk::PipelineBindPoint::eCompute, effect.pipeline);
+    cmd.bindPipeline(vk::PipelineBindPoint::eCompute, effect.mPipeline);
 
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, gradientPipelineLayout, 0, 1, &drawImageDescriptors, 0, nullptr);
+    cmd.bindDescriptorSets(vk::PipelineBindPoint::eCompute, mGradientPipelineLayout, 0, 1, &mDrawImageDescriptors, 0, nullptr);
 
-    cmd.pushConstants(gradientPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(ComputePushConstants), &effect.data);
+    cmd.pushConstants(mGradientPipelineLayout, vk::ShaderStageFlagBits::eCompute, 0, sizeof(ComputePushConstants), &effect.mData);
 
-    cmd.dispatch(std::ceil(drawExtent.width / 16.0f), std::ceil(drawExtent.height / 16.0f), 1);
+    cmd.dispatch(std::ceil(mDrawExtent.width / 16.0f), std::ceil(mDrawExtent.height / 16.0f), 1);
 }
 
 void VulkanEngine::drawImGui(vk::CommandBuffer cmd, vk::ImageView targetImageView)
 {
     vk::RenderingAttachmentInfo colorAttachment = attachmentInfo(targetImageView, nullptr);
-    vk::RenderingInfo renderInfo = renderingInfo(windowExtent, &colorAttachment, nullptr);
+    vk::RenderingInfo renderInfo = renderingInfo(mWindowExtent, &colorAttachment, nullptr);
 
     cmd.beginRendering(&renderInfo);
 
@@ -727,8 +727,8 @@ void VulkanEngine::startup()
     }
 
     SDL_Log("Vulkan Engine: create window");
-    sdlWindow = SDL_CreateWindow("gegege::VulkanEngine", windowExtent.width, windowExtent.height, SDL_WINDOW_VULKAN);
-    if (!sdlWindow)
+    mSdlWindow = SDL_CreateWindow("gegege::VulkanEngine", mWindowExtent.width, mWindowExtent.height, SDL_WINDOW_VULKAN);
+    if (!mSdlWindow)
     {
         SDL_Log("Vulkan Engine: Couldn't create window: %s", SDL_GetError());
         abort();
@@ -739,68 +739,68 @@ void VulkanEngine::startup()
 
 void VulkanEngine::draw()
 {
-    VK_CHECK(device.waitForFences(getCurrentFrame().renderFence, true, fenceTimeout));
-    device.resetFences(getCurrentFrame().renderFence);
+    VK_CHECK(mDevice.waitForFences(getCurrentFrame().mRenderFence, true, mFenceTimeout));
+    mDevice.resetFences(getCurrentFrame().mRenderFence);
 
-    getCurrentFrame().deletionQueue.flush();
+    getCurrentFrame().mDeletionQueue.flush();
 
-    vk::ResultValue<uint32_t> currentBuffer = device.acquireNextImageKHR(swapchain, fenceTimeout, getCurrentFrame().swapchainSemaphore, nullptr);
+    vk::ResultValue<uint32_t> currentBuffer = mDevice.acquireNextImageKHR(mSwapchain, mFenceTimeout, getCurrentFrame().mSwapchainSemaphore, nullptr);
     assert(currentBuffer.result == vk::Result::eSuccess);
     uint32_t swapchainImageIndex = currentBuffer.value;
 
-    vk::CommandBuffer cmd = getCurrentFrame().mainCommandBuffer;
+    vk::CommandBuffer cmd = getCurrentFrame().mMainCommandBuffer;
 
     cmd.reset();
 
     vk::CommandBufferBeginInfo beginInfo{};
     beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
-    drawExtent.width = drawImage.imageExtent.width;
-    drawExtent.height = drawImage.imageExtent.height;
+    mDrawExtent.width = mDrawImage.mImageExtent.width;
+    mDrawExtent.height = mDrawImage.mImageExtent.height;
 
     cmd.begin(beginInfo);
 
     // transition our main draw image into general layout so we can write into it
     // we will overwrite it all so we dont care about what was the older layout
-    transitionImage(cmd, drawImage.image, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
+    transitionImage(cmd, mDrawImage.mImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral);
 
     drawBackground(cmd);
 
     // transition the draw image and the swapchain image into their correct transfer layouts
-    transitionImage(cmd, drawImage.image, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
-    transitionImage(cmd, swapchainImages[swapchainImageIndex], vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+    transitionImage(cmd, mDrawImage.mImage, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal);
+    transitionImage(cmd, mSwapchainImages[swapchainImageIndex], vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
 
-    copyImageToImage(cmd, drawImage.image, swapchainImages[swapchainImageIndex], drawExtent, windowExtent);
+    copyImageToImage(cmd, mDrawImage.mImage, mSwapchainImages[swapchainImageIndex], mDrawExtent, mWindowExtent);
 
     // set swapchain image layout to Attachment Optimal so we can draw it
-    transitionImage(cmd, swapchainImages[swapchainImageIndex], vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eColorAttachmentOptimal);
+    transitionImage(cmd, mSwapchainImages[swapchainImageIndex], vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eColorAttachmentOptimal);
 
-    drawImGui(cmd, swapchainImageViews[swapchainImageIndex]);
+    drawImGui(cmd, mSwapchainImageViews[swapchainImageIndex]);
 
     // set swapchain image layout to Present so we can show it on the screen
-    transitionImage(cmd, swapchainImages[swapchainImageIndex], vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR);
+    transitionImage(cmd, mSwapchainImages[swapchainImageIndex], vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::ePresentSrcKHR);
 
     cmd.end();
 
     vk::CommandBufferSubmitInfo cmdInfo(cmd);
 
-    vk::SemaphoreSubmitInfo waitInfo(getCurrentFrame().swapchainSemaphore, 1, vk::PipelineStageFlagBits2::eColorAttachmentOutput);
-    vk::SemaphoreSubmitInfo signalInfo(getCurrentFrame().renderSemaphore, 1, vk::PipelineStageFlagBits2::eAllGraphics);
+    vk::SemaphoreSubmitInfo waitInfo(getCurrentFrame().mSwapchainSemaphore, 1, vk::PipelineStageFlagBits2::eColorAttachmentOutput);
+    vk::SemaphoreSubmitInfo signalInfo(getCurrentFrame().mRenderSemaphore, 1, vk::PipelineStageFlagBits2::eAllGraphics);
 
     vk::SubmitInfo2 submit({}, {waitInfo}, {cmdInfo}, {signalInfo});
 
-    VK_CHECK(graphicsQueue.submit2(1, &submit, getCurrentFrame().renderFence));
+    VK_CHECK(mGraphicsQueue.submit2(1, &submit, getCurrentFrame().mRenderFence));
 
     vk::PresentInfoKHR presentInfo{};
-    presentInfo.setSwapchains({swapchain});
+    presentInfo.setSwapchains({mSwapchain});
 
-    presentInfo.setWaitSemaphores({getCurrentFrame().renderSemaphore});
+    presentInfo.setWaitSemaphores({getCurrentFrame().mRenderSemaphore});
 
     presentInfo.setPImageIndices(&swapchainImageIndex);
 
-    VK_CHECK(presentQueue.presentKHR(presentInfo));
+    VK_CHECK(mPresentQueue.presentKHR(presentInfo));
 
-    frameNumber++;
+    mFrameNumber++;
 }
 
 void VulkanEngine::run()
@@ -821,18 +821,18 @@ void VulkanEngine::run()
             if (e.type == SDL_EVENT_WINDOW_MINIMIZED)
             {
                 SDL_Log("Vulkan Engine: SDL_EVENT_WINDOW_MINIMIZED is occured");
-                stopRendering = true;
+                mStopRendering = true;
             }
             if (e.type == SDL_EVENT_WINDOW_RESTORED)
             {
                 SDL_Log("Vulkan Engine: SDL_EVENT_WINDOW_RESTORED is occured");
-                stopRendering = false;
+                mStopRendering = false;
             }
 
             ImGui_ImplSDL3_ProcessEvent(&e);
         }
 
-        if (stopRendering)
+        if (mStopRendering)
         {
             SDL_Delay(100);
             continue;
@@ -844,16 +844,16 @@ void VulkanEngine::run()
 
         if (ImGui::Begin("background"))
         {
-            ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
+            ComputeEffect& selected = mBackgroundEffects[mCurrentBackgroundEffect];
 
-            ImGui::Text("Selected effect: ", selected.name);
+            ImGui::Text("Selected effect: ", selected.mName);
 
-            ImGui::SliderInt("Effect index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
+            ImGui::SliderInt("Effect index", &mCurrentBackgroundEffect, 0, mBackgroundEffects.size() - 1);
 
-            ImGui::InputFloat4("data1", (float*)&selected.data.data1);
-            ImGui::InputFloat4("data2", (float*)&selected.data.data2);
-            ImGui::InputFloat4("data3", (float*)&selected.data.data3);
-            ImGui::InputFloat4("data4", (float*)&selected.data.data4);
+            ImGui::InputFloat4("data1", (float*)&selected.mData.mData1);
+            ImGui::InputFloat4("data2", (float*)&selected.mData.mData2);
+            ImGui::InputFloat4("data3", (float*)&selected.mData.mData3);
+            ImGui::InputFloat4("data4", (float*)&selected.mData.mData4);
         }
         ImGui::End();
 

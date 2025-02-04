@@ -8,7 +8,7 @@ namespace gegege::vulkan {
 
 class DescriptorLayoutBuilder {
 
-    std::vector<vk::DescriptorSetLayoutBinding> bindings;
+    std::vector<vk::DescriptorSetLayoutBinding> mBindings;
 
 public:
     void add_binding(uint32_t binding, vk::DescriptorType type)
@@ -18,17 +18,17 @@ public:
         newBind.setDescriptorCount(1);
         newBind.setDescriptorType(type);
 
-        bindings.push_back(newBind);
+        mBindings.push_back(newBind);
     }
 
     void clear()
     {
-        bindings.clear();
+        mBindings.clear();
     }
 
     vk::DescriptorSetLayout build(vk::Device device, vk::ShaderStageFlags shaderStages, void* pNext = nullptr, vk::DescriptorSetLayoutCreateFlags flags = {})
     {
-        for (auto& b : bindings)
+        for (auto& b : mBindings)
         {
             b.stageFlags |= shaderStages;
         }
@@ -36,7 +36,7 @@ public:
         vk::DescriptorSetLayoutCreateInfo info{};
         info.setPNext(pNext);
 
-        info.setBindings(bindings);
+        info.setBindings(mBindings);
         info.setFlags(flags);
 
         vk::DescriptorSetLayout set{};
@@ -50,12 +50,12 @@ class DescriptorAllocator {
 
 public:
     struct PoolSizeRatio {
-        vk::DescriptorType type;
-        float ratio;
+        vk::DescriptorType mType;
+        float mRatio;
     };
 
 private:
-    vk::DescriptorPool pool;
+    vk::DescriptorPool mPool;
 
 public:
     void initPool(vk::Device device, uint32_t maxSets, std::span<PoolSizeRatio> poolRatios)
@@ -64,8 +64,8 @@ public:
         for (PoolSizeRatio ratio : poolRatios)
         {
             vk::DescriptorPoolSize ps{};
-            ps.setType(ratio.type);
-            ps.setDescriptorCount(uint32_t(ratio.ratio * maxSets));
+            ps.setType(ratio.mType);
+            ps.setDescriptorCount(uint32_t(ratio.mRatio * maxSets));
             poolSize.push_back(ps);
         }
 
@@ -73,23 +73,23 @@ public:
         poolInfo.setMaxSets(maxSets);
         poolInfo.setPoolSizes(poolSize);
 
-        device.createDescriptorPool(&poolInfo, nullptr, &pool);
+        device.createDescriptorPool(&poolInfo, nullptr, &mPool);
     }
 
     void clearDescriptors(vk::Device device)
     {
-        device.resetDescriptorPool(pool);
+        device.resetDescriptorPool(mPool);
     }
 
     void destroyPool(vk::Device device)
     {
-        device.destroyDescriptorPool(pool, nullptr);
+        device.destroyDescriptorPool(mPool, nullptr);
     }
 
     vk::DescriptorSet allocate(vk::Device device, vk::DescriptorSetLayout layout)
     {
         vk::DescriptorSetAllocateInfo allocInfo{};
-        allocInfo.setDescriptorPool(pool);
+        allocInfo.setDescriptorPool(mPool);
         allocInfo.setDescriptorSetCount(1);
         allocInfo.setPSetLayouts(&layout);
 

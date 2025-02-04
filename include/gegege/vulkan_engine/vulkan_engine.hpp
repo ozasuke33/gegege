@@ -16,104 +16,104 @@
 namespace gegege::vulkan {
 
 struct DeletionQueue {
-    std::vector<std::function<void()>> deletors;
+    std::vector<std::function<void()>> mDeletors;
 
     void pushFunction(std::function<void()>&& function)
     {
-        deletors.push_back(function);
+        mDeletors.push_back(function);
     }
 
     void flush()
     {
-        for (auto it = deletors.rbegin(); it != deletors.rend(); ++it)
+        for (auto it = mDeletors.rbegin(); it != mDeletors.rend(); ++it)
         {
             (*it)();
         }
-        deletors.clear();
+        mDeletors.clear();
     }
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
 
 struct FrameData {
-    vk::CommandPool commandPool;
-    vk::CommandBuffer mainCommandBuffer;
-    vk::Semaphore swapchainSemaphore;
-    vk::Semaphore renderSemaphore;
-    vk::Fence renderFence;
-    DeletionQueue deletionQueue;
+    vk::CommandPool mCommandPool;
+    vk::CommandBuffer mMainCommandBuffer;
+    vk::Semaphore mSwapchainSemaphore;
+    vk::Semaphore mRenderSemaphore;
+    vk::Fence mRenderFence;
+    DeletionQueue mDeletionQueue;
 };
 
 struct ComputePushConstants {
-    glm::vec4 data1;
-    glm::vec4 data2;
-    glm::vec4 data3;
-    glm::vec4 data4;
+    glm::vec4 mData1;
+    glm::vec4 mData2;
+    glm::vec4 mData3;
+    glm::vec4 mData4;
 };
 
 struct ComputeEffect {
-    const char* name;
+    const char* mName;
 
-    VkPipeline pipeline;
-    VkPipelineLayout layout;
+    VkPipeline mPipeline;
+    VkPipelineLayout mLayout;
 
-    ComputePushConstants data;
+    ComputePushConstants mData;
 };
 
 struct AllocatedImage {
-    vk::Image image;
-    vk::ImageView imageView;
-    VmaAllocation allocation;
-    vk::Extent3D imageExtent;
-    vk::Format imageFormat;
+    vk::Image mImage;
+    vk::ImageView mImageView;
+    VmaAllocation mAllocation;
+    vk::Extent3D mImageExtent;
+    vk::Format mImageFormat;
 };
 
 class VulkanEngine {
 
-    vk::Extent2D windowExtent{640, 480};
+    vk::Extent2D mWindowExtent{640, 480};
 
-    SDL_Window* sdlWindow;
-    vk::Instance instance;
-    vk::PhysicalDevice physicalDevice;
-    vk::Device device;
-    uint32_t graphicsQueueFamilyIndex;
-    uint32_t presentQueueFamilyIndex;
-    vk::Queue graphicsQueue;
-    vk::Queue presentQueue;
-    vk::SurfaceKHR surface;
-    vk::SwapchainKHR swapchain;
-    vk::Format swapchainImageFormat;
-    std::vector<vk::Image> swapchainImages;
-    std::vector<vk::ImageView> swapchainImageViews;
+    SDL_Window* mSdlWindow;
+    vk::Instance mInstance;
+    vk::PhysicalDevice mPhysicalDevice;
+    vk::Device mDevice;
+    uint32_t mGraphicsQueueFamilyIndex;
+    uint32_t mPresentQueueFamilyIndex;
+    vk::Queue mGraphicsQueue;
+    vk::Queue mPresentQueue;
+    vk::SurfaceKHR mSurface;
+    vk::SwapchainKHR mSwapchain;
+    vk::Format mSwapchainImageFormat;
+    std::vector<vk::Image> mSwapchainImages;
+    std::vector<vk::ImageView> mSwapchainImageViews;
 
-    DescriptorAllocator globalDescriptorAllocator;
+    DescriptorAllocator mGlobalDescriptorAllocator;
 
-    vk::DescriptorSet drawImageDescriptors;
-    vk::DescriptorSetLayout drawImageDescriptorLayout;
+    vk::DescriptorSet mDrawImageDescriptors;
+    vk::DescriptorSetLayout mDrawImageDescriptorLayout;
 
-    vk::PipelineLayout gradientPipelineLayout;
+    vk::PipelineLayout mGradientPipelineLayout;
 
-    vk::Fence immFence;
-    vk::CommandBuffer immCommandBuffer;
-    vk::CommandPool immCommandPool;
+    vk::Fence mImmFence;
+    vk::CommandBuffer mImmCommandBuffer;
+    vk::CommandPool mImmCommandPool;
 
-    AllocatedImage drawImage;
-    vk::Extent2D drawExtent;
+    AllocatedImage mDrawImage;
+    vk::Extent2D mDrawExtent;
 
-    FrameData frames[FRAME_OVERLAP];
-    uint32_t frameNumber;
-    FrameData& getCurrentFrame() { return frames[frameNumber % FRAME_OVERLAP]; }
+    FrameData mFrames[FRAME_OVERLAP];
+    uint32_t mFrameNumber;
+    FrameData& getCurrentFrame() { return mFrames[mFrameNumber % FRAME_OVERLAP]; }
 
-    std::vector<ComputeEffect> backgroundEffects;
-    int currentBackgroundEffect{0};
+    std::vector<ComputeEffect> mBackgroundEffects;
+    int mCurrentBackgroundEffect{0};
 
-    DeletionQueue mainDeletionQueue;
+    DeletionQueue mMainDeletionQueue;
 
-    VmaAllocator allocator;
+    VmaAllocator mAllocator;
 
-    const uint64_t fenceTimeout = 100000000;
+    const uint64_t mFenceTimeout = 100000000;
 
-    bool stopRendering;
+    bool mStopRendering;
 
     vk::ImageCreateInfo imageCreateInfo(vk::Format format, vk::ImageUsageFlags usageFlags, vk::Extent3D extent);
     vk::ImageViewCreateInfo imageviewCreateInfo(vk::Format format, vk::Image image, vk::ImageAspectFlagBits aspectFlags);

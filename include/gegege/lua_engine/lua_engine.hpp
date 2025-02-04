@@ -22,8 +22,8 @@ enum class LuaType {
 };
 
 struct LuaNil final {
-    const LuaType type = LuaType::eNil;
-    const std::nullptr_t value = nullptr;
+    const LuaType mType = LuaType::eNil;
+    const std::nullptr_t mValue = nullptr;
     static LuaNil make() { return LuaNil(); }
 
 private:
@@ -31,30 +31,30 @@ private:
 };
 
 struct LuaBoolean final {
-    const LuaType type = LuaType::eBoolean;
-    const bool value;
+    const LuaType mType = LuaType::eBoolean;
+    const bool mValue;
     static LuaBoolean make(const bool value) { return LuaBoolean(value); }
 
 private:
-    LuaBoolean(const bool value) : value(value) {}
+    LuaBoolean(const bool value) : mValue(value) {}
 };
 
 struct LuaNumber final {
-    const LuaType type = LuaType::eNumber;
-    const double value;
+    const LuaType mType = LuaType::eNumber;
+    const double mValue;
     static LuaNumber make(const double value) { return LuaNumber(value); }
 
 private:
-    LuaNumber(const double value) : value(value) {}
+    LuaNumber(const double value) : mValue(value) {}
 };
 
 struct LuaString final {
-    const LuaType type = LuaType::eString;
-    const std::string value;
+    const LuaType mType = LuaType::eString;
+    const std::string mValue;
     static LuaString make(const std::string& value) { return LuaString(value); }
 
 private:
-    LuaString(const std::string& value) : value(value) {}
+    LuaString(const std::string& value) : mValue(value) {}
 };
 
 using LuaValue = std::variant<LuaNil, LuaBoolean, LuaNumber, LuaString>;
@@ -62,7 +62,7 @@ using LuaValue = std::variant<LuaNil, LuaBoolean, LuaNumber, LuaString>;
 inline LuaType getLuaType(const LuaValue& value)
 {
     return std::visit(
-        [](const auto& v) { return v.type; },
+        [](const auto& v) { return v.mType; },
         value);
 }
 
@@ -73,34 +73,34 @@ inline std::string getLuaValueString(const LuaValue& value)
         case LuaType::eNil:
             return "nil";
         case LuaType::eBoolean:
-            return std::get<LuaBoolean>(value).value
+            return std::get<LuaBoolean>(value).mValue
                        ? "true"
                        : "false";
         case LuaType::eNumber:
             return std::to_string(
-                std::get<LuaNumber>(value).value);
+                std::get<LuaNumber>(value).mValue);
         case LuaType::eString:
-            return std::get<LuaString>(value).value;
+            return std::get<LuaString>(value).mValue;
     }
 }
 
 class LuaEngine {
-    lua_State* L;
+    lua_State* mL;
 
 public:
     void startup()
     {
-        L = luaL_newstate();
+        mL = luaL_newstate();
     }
 
     void shutdown()
     {
-        lua_close(L);
+        lua_close(mL);
     }
 
     void openlibs()
     {
-        luaL_openlibs(L);
+        luaL_openlibs(mL);
     }
 
     void pushValue(const LuaValue& value)
@@ -108,34 +108,34 @@ public:
         switch (getLuaType(value))
         {
             case LuaType::eNil:
-                lua_pushnil(L);
+                lua_pushnil(mL);
                 break;
             case LuaType::eBoolean:
-                lua_pushboolean(L, std::get<LuaBoolean>(value).value ? 1 : 0);
+                lua_pushboolean(mL, std::get<LuaBoolean>(value).mValue ? 1 : 0);
                 break;
             case LuaType::eNumber:
-                lua_pushnumber(L, std::get<LuaNumber>(value).value);
+                lua_pushnumber(mL, std::get<LuaNumber>(value).mValue);
                 break;
             case LuaType::eString:
-                lua_pushstring(L, std::get<LuaString>(value).value.c_str());
+                lua_pushstring(mL, std::get<LuaString>(value).mValue.c_str());
                 break;
         }
     }
 
     LuaValue getValue(int index)
     {
-        switch (lua_type(L, index))
+        switch (lua_type(mL, index))
         {
             case LUA_TNIL:
                 return LuaNil::make();
             case LUA_TBOOLEAN:
                 return LuaBoolean::make(
-                    lua_toboolean(L, index) == 1);
+                    lua_toboolean(mL, index) == 1);
             case LUA_TNUMBER:
                 return LuaNumber::make(
-                    (double)lua_tonumber(L, index));
+                    (double)lua_tonumber(mL, index));
             case LUA_TSTRING:
-                return LuaString::make(lua_tostring(L, index));
+                return LuaString::make(lua_tostring(mL, index));
             default:
                 return LuaNil::make();
         }
@@ -144,7 +144,7 @@ public:
     LuaValue popValue()
     {
         auto value = getValue(-1);
-        lua_pop(L, 1);
+        lua_pop(mL, 1);
         return value;
     }
 
@@ -155,20 +155,20 @@ public:
         {
             results.push_back(getValue(-i));
         }
-        lua_pop(L, n);
+        lua_pop(mL, n);
         return results;
     }
 
     std::string popString()
     {
         auto result = std::get<LuaString>(popValue());
-        lua_pop(L, 1);
-        return result.value;
+        lua_pop(mL, 1);
+        return result.mValue;
     }
 
     void execute(const std::string& code)
     {
-        if (luaL_loadstring(L, code.c_str()) != LUA_OK)
+        if (luaL_loadstring(mL, code.c_str()) != LUA_OK)
         {
             SDL_Log("Lua Engine: Failed to prepare script: %s", popString().c_str());
         }
@@ -178,7 +178,7 @@ public:
 
     void executeFile(const std::string& path)
     {
-        if (luaL_loadfile(L, path.c_str()) != LUA_OK)
+        if (luaL_loadfile(mL, path.c_str()) != LUA_OK)
         {
             SDL_Log("Lua Engine: Failed to prepare file: %s", popString().c_str());
         }
@@ -188,7 +188,7 @@ public:
 
     bool pcall(int nargs = 0, int nresult = 0)
     {
-        if (lua_pcall(L, nargs, nresult, 0) != LUA_OK)
+        if (lua_pcall(mL, nargs, nresult, 0) != LUA_OK)
         {
             SDL_Log("Lua Engine: Failed to execute Lua code: %s", popString().c_str());
             return false;
@@ -200,7 +200,7 @@ public:
     template <typename... Ts>
     LuaValue call(const std::string& function, const Ts&... params)
     {
-        int type = lua_getglobal(L, function.c_str());
+        int type = lua_getglobal(mL, function.c_str());
         if (type != LUA_TFUNCTION)
         {
             abort();
@@ -217,8 +217,8 @@ public:
     std::vector<LuaValue> vcall(
         const std::string& function, const Ts&... params)
     {
-        int stackSz = lua_gettop(L);
-        int type = lua_getglobal(L, function.c_str());
+        int stackSz = lua_gettop(mL);
+        int type = lua_getglobal(mL, function.c_str());
         if (type != LUA_TFUNCTION)
         {
             abort();
@@ -230,7 +230,7 @@ public:
         }
         if (pcall(sizeof...(params), LUA_MULTRET))
         {
-            int nresults = lua_gettop(L) - stackSz;
+            int nresults = lua_gettop(mL) - stackSz;
             return popValues(nresults);
         }
         return std::vector<LuaValue>();
@@ -238,14 +238,14 @@ public:
 
     LuaValue getGlobal(const std::string& name)
     {
-        lua_getglobal(L, name.c_str());
+        lua_getglobal(mL, name.c_str());
         return popValue();
     }
 
     void setGlobal(const std::string& name, const LuaValue& value)
     {
         pushValue(value);
-        lua_setglobal(L, name.c_str());
+        lua_setglobal(mL, name.c_str());
     }
 };
 
