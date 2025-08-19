@@ -11,7 +11,7 @@ target_link_libraries(gegege_cpp PUBLIC
     imgui
 )
 
-add_executable(otsukimi
+add_executable(otsukimi WIN32
     gegege/otsukimi/main.cpp
 )
 

@@ -1,6 +1,13 @@
 #include <gegege/otsukimi/otsukimi.hpp>
+#include <vulkan/vulkan.hpp>
 
-int main(int argc, char** argv)
+#include <windows.h>
+
+int WinMain(
+    HINSTANCE hInstance,
+    HINSTANCE hPrevInstance,
+    LPSTR lpCmdLine,
+    int nShowCmd)
 {
     gegege::otsukimi::Otsukimi otsukimi;
     otsukimi.startup();
