@@ -1,5 +1,6 @@
 #pragma once
 
+#include <SDL3/SDL_log.h>
 #include <vulkan/vk_enum_string_helper.h>
 
 #define VK_CHECK(x)                                                                              \
