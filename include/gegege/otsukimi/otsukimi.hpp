@@ -106,6 +106,7 @@ struct Otsukimi {
                     SDL_Log("Otsukimi: SDL_EVENT_WINDOW_RESTORED is occured");
                     mStopRendering = false;
                     mPrevTime = SDL_GetPerformanceCounter();
+                    SDL_Delay(1);
                 }
             }
 
