@@ -1,7 +1,7 @@
 include(FetchContent)
 
 FetchContent_Declare(SDL
-    URL https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.0.tar.gz
+    URL https://github.com/libsdl-org/SDL/archive/refs/tags/release-3.2.20.tar.gz
 )
 set(SDL_SHARED_DEFAULT OFF CACHE INTERNAL "")
 set(SDL_SHARED OFF CACHE INTERNAL "")
