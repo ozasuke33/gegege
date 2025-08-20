@@ -1,0 +1,316 @@
+#pragma once
+
+#include <SDL3/SDL.h>
+#include <glm/mat4x4.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
+
+#include <gegege/otsukimi/gl.h>
+
+#include <string>
+#include <unordered_map>
+#include <filesystem>
+#include <vector>
+
+#include <stb_image.h>
+
+namespace gegege::otsukimi {
+
+constexpr unsigned int FRAME_OVERLAP = 2;
+constexpr unsigned int MAX_VERTEX = 1024;
+
+struct Vertex {
+    float mX;
+    float mY;
+    float mU;
+    float mV;
+};
+
+struct Texture {
+    GLuint mTexID;
+    int mWidth;
+    int mHeight;
+};
+
+struct VBO {
+    GLuint mVertexBufferID;
+    GLsizeiptr mNumBytes;
+};
+
+struct FrameData {
+    VBO* mVertexBuffer;
+    std::vector<Texture*> mTextures;
+    std::vector<Vertex> mVertices;
+};
+
+struct Renderer {
+    GLuint mVAO;
+    GLuint mShader;
+    GLint mMVPLocation;
+
+    FrameData mFrames[FRAME_OVERLAP];
+    uint32_t mFrameNumber;
+    FrameData& getCurrentFrame() { return mFrames[mFrameNumber % FRAME_OVERLAP]; }
+
+    std::unordered_map<std::string, Texture*> mTextures;
+
+    void startup()
+    {
+        glGenVertexArrays(1, &mVAO);
+        glBindVertexArray(mVAO);
+
+        mShader = createShader(
+            R"(#version 330
+layout(location = 0)in vec2 vPosition;
+layout(location = 1)in vec2 vTexCoord;
+uniform mat4 uMVP;
+out vec2 pTexCoord;
+void main()
+{
+    gl_Position = uMVP * vec4(vPosition.x, vPosition.y, 0.0, 1.0);
+    pTexCoord = vTexCoord;
+}
+)",
+            R"(#version 330
+in vec2 pTexCoord;
+uniform sampler2D uTex;
+out vec4 fragColor;
+void main()
+{
+    fragColor = texture(uTex, pTexCoord);
+})");
+        glUseProgram(mShader);
+
+        mMVPLocation = glGetUniformLocation(mShader, "uMVP");
+
+        for (auto& i : mFrames)
+        {
+            i.mVertexBuffer = createVBO(sizeof(Vertex) * MAX_VERTEX);
+        }
+    }
+
+    void shutdown()
+    {
+    }
+
+    void update(GLint viewportX, GLint viewportY, GLsizei viewportWidth, GLsizei viewportHeight)
+    {
+        mFrameNumber++;
+
+        FrameData& frame = getCurrentFrame();
+        frame.mVertices.clear();
+
+        glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+
+        glm::mat4 ortho = glm::ortho(float(-viewportWidth) / 2.0f, float(viewportWidth) / 2.0f, float(-viewportHeight) / 2.0f, float(viewportHeight) / 2.0f);
+
+        glUniformMatrix4fv(mMVPLocation, 1, GL_FALSE, glm::value_ptr(ortho));
+    }
+
+    GLuint createShader(const char* vert, const char* frag)
+    {
+        GLint vs = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(vs, 1, &vert, NULL);
+        glCompileShader(vs);
+        GLint vsCompileStatus;
+        glGetShaderiv(vs, GL_COMPILE_STATUS, &vsCompileStatus);
+        if (vsCompileStatus == GL_FALSE)
+        {
+            GLint logLength;
+            glGetShaderiv(vs, GL_INFO_LOG_LENGTH, &logLength);
+            if (logLength)
+            {
+                std::string infoLog(logLength, ' ');
+                glGetShaderInfoLog(vs, logLength, NULL, &infoLog[0]);
+                SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Vertex shader compilation failed: %s", infoLog.c_str());
+            }
+        }
+        SDL_assert_release(vsCompileStatus == GL_TRUE);
+
+        GLint fs = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(fs, 1, &frag, NULL);
+        glCompileShader(fs);
+        GLint fsCompileStatus;
+        glGetShaderiv(fs, GL_COMPILE_STATUS, &fsCompileStatus);
+        if (fsCompileStatus == GL_FALSE)
+        {
+            GLint logLength;
+            glGetShaderiv(fs, GL_INFO_LOG_LENGTH, &logLength);
+            if (logLength)
+            {
+                std::string infoLog(logLength, ' ');
+                glGetShaderInfoLog(fs, logLength, NULL, &infoLog[0]);
+                SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Fragment shader compilation failed: %s", infoLog.c_str());
+            }
+        }
+        SDL_assert_release(fsCompileStatus == GL_TRUE);
+
+        GLuint program = glCreateProgram();
+        glAttachShader(program, vs);
+        glAttachShader(program, fs);
+        glLinkProgram(program);
+
+        GLint programLinkStatus;
+        glGetProgramiv(program, GL_LINK_STATUS, &programLinkStatus);
+        if (programLinkStatus == GL_FALSE)
+        {
+            GLint logLength;
+            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &logLength);
+            if (logLength)
+            {
+                std::string infoLog(logLength, ' ');
+                glGetProgramInfoLog(program, logLength, NULL, &infoLog[0]);
+                SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Shader link failed: %s", infoLog.c_str());
+            }
+        }
+        SDL_assert_release(programLinkStatus == GL_TRUE);
+
+        glDetachShader(program, vs);
+        glDetachShader(program, fs);
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+
+        return program;
+    }
+
+    VBO* createVBO(GLsizeiptr numBytes)
+    {
+        VBO* vbo = new VBO();
+
+        glGenBuffers(1, &vbo->mVertexBufferID);
+        SDL_assert_release(vbo->mVertexBufferID);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo->mVertexBufferID);
+        glBufferData(GL_ARRAY_BUFFER, numBytes, NULL, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        vbo->mNumBytes = numBytes;
+
+        return vbo;
+    }
+
+    Texture* textureFind(const std::string& path)
+    {
+        if (mTextures.contains(path))
+        {
+            return mTextures[path];
+        }
+
+        std::filesystem::path basePath = SDL_GetBasePath();
+        basePath.append("data");
+        basePath.append(path);
+
+        Texture* tex = new Texture();
+        int c;
+        unsigned char* data = stbi_load(basePath.generic_string().c_str(), &tex->mWidth, &tex->mHeight, &c, 0);
+        if (!data)
+        {
+            SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Texture failed to load: %s", basePath.generic_string().c_str());
+            return nullptr;
+        }
+        else {
+            SDL_Log("Texture loaded: %s", basePath.generic_string().c_str());
+        }
+
+        glGenTextures(1, &tex->mTexID);
+        SDL_assert_release(tex);
+        glBindTexture(GL_TEXTURE_2D, tex->mTexID);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        if (c == 3)
+        {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, tex->mWidth, tex->mHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        }
+        else if (c == 4)
+        {
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex->mWidth, tex->mHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+        }
+        stbi_image_free(data);
+
+        mTextures[path] = tex;
+
+        return mTextures[path];
+    }
+
+    void drawTexture(Texture* tex, float x, float y)
+    {
+        // (-1,  1)  - ( 1,  1)
+        //     |           |
+        // (-1, -1)  - ( 1, -1)
+
+        Vertex topLeft;
+        topLeft.mX = x - (tex->mWidth / 2.0f);
+        topLeft.mY = y + (tex->mHeight / 2.0f);
+        topLeft.mU = 0.0f;
+        topLeft.mV = 0.0f;
+
+        Vertex topRight;
+        topRight.mX = x + (tex->mWidth / 2.0f);
+        topRight.mY = y + (tex->mHeight / 2.0f);
+        topRight.mU = 1.0f;
+        topRight.mV = 0.0f;
+
+        Vertex bottomLeft;
+        bottomLeft.mX = x - (tex->mWidth / 2.0f);
+        bottomLeft.mY = y - (tex->mHeight / 2.0f);
+        bottomLeft.mU = 0.0f;
+        bottomLeft.mV = 1.0f;
+
+        Vertex bottomRight;
+        bottomRight.mX = x + (tex->mWidth / 2.0f);
+        bottomRight.mY = y - (tex->mHeight / 2.0f);
+        bottomRight.mU = 1.0f;
+        bottomRight.mV = 1.0f;
+
+        FrameData& frame = getCurrentFrame();
+
+        if (frame.mVertices.size() >= MAX_VERTEX)
+        {
+            flush();
+        }
+
+        frame.mTextures.emplace_back(tex);
+
+        frame.mVertices.emplace_back(topLeft);
+        frame.mVertices.emplace_back(bottomLeft);
+        frame.mVertices.emplace_back(bottomRight);
+
+        frame.mVertices.emplace_back(bottomRight);
+        frame.mVertices.emplace_back(topRight);
+        frame.mVertices.emplace_back(topLeft);
+    }
+
+    void flush()
+    {
+        FrameData& frame = getCurrentFrame();
+
+        if (frame.mVertices.empty()) { return; }
+
+        glBindBuffer(GL_ARRAY_BUFFER, frame.mVertexBuffer->mVertexBufferID);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * frame.mVertices.size(), &frame.mVertices[0]);
+
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+
+        unsigned int j = 0;
+        for (unsigned int i = 0; i < frame.mVertices.size(); i += 6)
+        {
+            Texture* tex = frame.mTextures[j];
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, tex->mTexID);
+            ++j;
+            glDrawArrays(GL_TRIANGLES, i, 6);
+        }
+
+        frame.mVertices.clear();
+        frame.mTextures.clear();
+    }
+};
+
+} // namespace gegege::otsukimi

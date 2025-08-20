@@ -6,6 +6,7 @@ target_link_libraries(gegege_cpp PUBLIC
     Vulkan::Vulkan
     VulkanMemoryAllocator
     SDL3::SDL3
+    stb
     lua
     glm
     imgui

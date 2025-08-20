@@ -3,6 +3,12 @@
 
 #include <windows.h>
 
+#define GLAD_GL_IMPLEMENTATION
+#include <gegege/otsukimi/gl.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 int WinMain(
     HINSTANCE hInstance,
     HINSTANCE hPrevInstance,

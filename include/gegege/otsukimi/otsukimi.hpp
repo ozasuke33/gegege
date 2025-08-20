@@ -1,6 +1,8 @@
 #pragma once
 
 #include <gegege/lua_engine/lua_engine.hpp>
+#include <gegege/otsukimi/gl.h>
+#include <gegege/otsukimi/renderer.hpp>
 
 #include <filesystem>
 
@@ -12,6 +14,7 @@ struct Otsukimi {
     SDL_GLContext mGlContext;
     bool mStopRendering = false;
     uint64_t mPrevTime;
+    Renderer mRenderer;
 
     void startup()
     {
@@ -39,11 +42,21 @@ struct Otsukimi {
             SDL_Log("Otsukimi: Couldn't create gl context: %s", SDL_GetError());
         }
 
+        gladLoadGL((GLADloadfunc)SDL_GL_GetProcAddress);
+        SDL_Log("OpenGL Version: %s", (const char*)glGetString(GL_VERSION));
+        SDL_Log("OpenGL Renderer: %s", (const char*)glGetString(GL_RENDERER));
+        SDL_Log("GLSL Version: %s", (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION));
+
         // set VSYNC
         if (!SDL_GL_SetSwapInterval(-1))
         {
-            SDL_GL_SetSwapInterval(1);
+            SDL_Log("VSYNC: %s", SDL_GetError());
+            if (!SDL_GL_SetSwapInterval(1)) {
+                SDL_Log("VSYNC: %s", SDL_GetError());
+            }
         }
+
+        mRenderer.startup();
 
         std::filesystem::path path = SDL_GetBasePath();
         SDL_Log("Base Path: %s", path.generic_string().c_str());
@@ -72,10 +85,13 @@ struct Otsukimi {
         mLuaEngine.executeFile(path.generic_string().c_str());
 
         mPrevTime = SDL_GetPerformanceCounter();
+        SDL_Delay(1);
     }
 
     void shutdown()
     {
+        mRenderer.shutdown();
+
         SDL_Quit();
 
         mLuaEngine.shutdown();
@@ -116,11 +132,22 @@ struct Otsukimi {
                 continue;
             }
 
+            int w, h;
+            SDL_GetWindowSizeInPixels(mSdlWindow, &w, &h);
+            mRenderer.update(0, 0, w, h);
+
             uint64_t now = SDL_GetPerformanceCounter();
             double dt = double(now - mPrevTime) / SDL_GetPerformanceFrequency();
             mPrevTime = now;
 
             mLuaEngine.call("update", gegege::lua::LuaNumber::make(dt));
+
+            //Texture* tex = mRenderer.textureFind("bar/pic.png");
+            //mRenderer.drawTexture(tex, 0, 0);
+            //mRenderer.drawTexture(tex, 100, 100);
+            //mRenderer.drawTexture(tex, -100, 100);
+
+            mRenderer.flush();
 
             SDL_GL_SwapWindow(mSdlWindow);
         }

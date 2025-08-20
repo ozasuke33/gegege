@@ -8,6 +8,14 @@ set(SDL_SHARED OFF CACHE INTERNAL "")
 set(SDL_STATIC ON CACHE INTERNAL "")
 FetchContent_MakeAvailable(SDL)
 
+# May 26, 2025
+FetchContent_Declare(stb
+    GIT_REPOSITORY https://github.com/nothings/stb
+    GIT_TAG f58f558c120e9b32c217290b80bad1a0729fbb2c
+)
+FetchContent_MakeAvailable(stb)
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
 
 FetchContent_Declare(VMA
     URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.2.0.tar.gz
