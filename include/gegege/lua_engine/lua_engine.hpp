@@ -84,10 +84,9 @@ inline std::string getLuaValueString(const LuaValue& value)
     }
 }
 
-class LuaEngine {
+struct LuaEngine {
     lua_State* mL;
 
-public:
     void startup()
     {
         mL = luaL_newstate();

@@ -23,7 +23,7 @@ FetchContent_Declare(VMA
 FetchContent_MakeAvailable(VMA)
 
 FetchContent_Declare(lua
-    URL https://github.com/lua/lua/archive/refs/tags/v5.4.7.tar.gz
+    URL https://github.com/lua/lua/archive/refs/tags/v5.4.8.tar.gz
 )
 FetchContent_MakeAvailable(lua)
 add_library(lua STATIC
