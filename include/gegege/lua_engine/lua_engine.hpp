@@ -8,7 +8,6 @@ extern "C" {
 
 #include <SDL3/SDL.h>
 
-#include <cassert>
 #include <string>
 #include <variant>
 #include <vector>
@@ -252,7 +251,7 @@ public:
     LuaValue getTable(const std::string& table, const std::string& key)
     {
         int type = lua_getglobal(mL, table.c_str());
-        assert(type == LUA_TTABLE);
+        SDL_assert_release(type == LUA_TTABLE);
         lua_pushstring(mL, key.c_str());
         lua_gettable(mL, -2);
         auto value = popValue();
@@ -263,7 +262,7 @@ public:
     void setTable(const std::string& table, const std::string& key, const LuaValue& value)
     {
         int type = lua_getglobal(mL, table.c_str());
-        assert(type == LUA_TTABLE);
+        SDL_assert_release(type == LUA_TTABLE);
         lua_pushstring(mL, key.c_str());
         pushValue(value);
         lua_settable(mL, -3);
