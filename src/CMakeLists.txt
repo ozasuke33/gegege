@@ -1,4 +1,4 @@
-add_library(gegege_cpp
+add_library(gegege_cpp STATIC
     gegege/vulkan_engine/vulkan_engine.cpp
 )
 

@@ -161,7 +161,6 @@ struct LuaEngine {
     std::string popString()
     {
         auto result = std::get<LuaString>(popValue());
-        lua_pop(mL, 1);
         return result.mValue;
     }
 
