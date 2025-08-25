@@ -1,9 +1,9 @@
 include(FetchContent)
 
 add_subdirectory(SDL EXCLUDE_FROM_ALL)
-set(SDL_SHARED_DEFAULT OFF CACHE INTERNAL "")
-set(SDL_SHARED OFF CACHE INTERNAL "")
-set(SDL_STATIC ON CACHE INTERNAL "")
+
+set(SDLTTF_VENDORED ON)
+add_subdirectory(SDL_ttf EXCLUDE_FROM_ALL)
 
 # May 26, 2025
 FetchContent_Declare(stb
