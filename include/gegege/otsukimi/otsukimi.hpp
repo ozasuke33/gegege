@@ -31,6 +31,29 @@ int drawTexture(lua_State* L)
     return 0;
 }
 
+int fontFind(lua_State* L)
+{
+    lua::LuaEngine lua;
+    lua.mL = L;
+    lua::LuaValue ptSize = lua.popValue();
+    lua::LuaValue path = lua.popValue();
+    TTF_Font* font = gRenderer->fontFind(lua::getLuaValueString(path), std::get<lua::LuaNumber>(ptSize).mValue);
+    lua_pushlightuserdata(L, font);
+    return 1;
+}
+
+int drawText(lua_State* L)
+{
+    lua::LuaEngine lua;
+    lua.mL = L;
+    lua::LuaValue text = lua.popValue();
+    lua::LuaValue y = lua.popValue();
+    lua::LuaValue x = lua.popValue();
+    TTF_Font* font = (TTF_Font*)lua_touserdata(L, -1);
+    gRenderer->drawText(font, std::get<lua::LuaNumber>(x).mValue, std::get<lua::LuaNumber>(y).mValue, lua::getLuaValueString(text));
+    return 0;
+}
+
 struct Otsukimi {
     lua::LuaEngine mLuaEngine;
     SDL_Window* mSdlWindow;
@@ -84,6 +107,8 @@ struct Otsukimi {
 
         lua_register(mLuaEngine.mL, "textureFind", textureFind);
         lua_register(mLuaEngine.mL, "drawTexture", drawTexture);
+        lua_register(mLuaEngine.mL, "fontFind", fontFind);
+        lua_register(mLuaEngine.mL, "drawText", drawText);
 
         std::filesystem::path path = SDL_GetBasePath();
         SDL_Log("Base Path: %s", path.generic_string().c_str());
