@@ -9,7 +9,7 @@ target_link_libraries(gegege_cpp PUBLIC
     SDL3_ttf::SDL3_ttf
     stb
     lua
-    glm
+    glm::glm-header-only
     imgui
 )
 
