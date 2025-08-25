@@ -15,7 +15,7 @@ int textureFind(lua_State* L)
     lua::LuaEngine lua;
     lua.mL = L;
     lua::LuaValue path = lua.popValue();
-    Texture* tex = gRenderer->textureFind(lua::getLuaValueString(path).c_str());
+    Texture* tex = gRenderer->textureFind(lua::getLuaValueString(path));
     lua_pushlightuserdata(L, tex);
     return 1;
 }
