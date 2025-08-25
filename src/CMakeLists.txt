@@ -30,6 +30,11 @@ if(WIN32)
         COMMAND "${CMAKE_COMMAND}" -E copy $<TARGET_FILE:SDL3::SDL3-shared> $<TARGET_FILE_DIR:otsukimi>
         VERBATIM
     )
+    add_custom_command(
+        TARGET otsukimi POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E copy $<TARGET_FILE:SDL3_ttf::SDL3_ttf-shared> $<TARGET_FILE_DIR:otsukimi>
+        VERBATIM
+    )
 endif()
 
 target_link_libraries(otsukimi PUBLIC gegege_cpp)

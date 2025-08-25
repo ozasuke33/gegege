@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL_ttf.h>
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
@@ -56,6 +57,11 @@ struct Renderer {
 
     void startup()
     {
+        if (!TTF_Init())
+        {
+            SDL_Log("Couldn't initialise SDL_ttf: %s", SDL_GetError());
+        }
+
         glGenVertexArrays(1, &mVAO);
         glBindVertexArray(mVAO);
 
@@ -91,6 +97,7 @@ void main()
 
     void shutdown()
     {
+        TTF_Quit();
     }
 
     void update(GLint viewportX, GLint viewportY, GLsizei viewportWidth, GLsizei viewportHeight)
@@ -209,7 +216,8 @@ void main()
             SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Texture failed to load: %s", basePath.generic_string().c_str());
             return nullptr;
         }
-        else {
+        else
+        {
             SDL_Log("Texture loaded: %s", basePath.generic_string().c_str());
         }
 
@@ -288,7 +296,10 @@ void main()
     {
         FrameData& frame = getCurrentFrame();
 
-        if (frame.mVertices.empty()) { return; }
+        if (frame.mVertices.empty())
+        {
+            return;
+        }
 
         glBindBuffer(GL_ARRAY_BUFFER, frame.mVertexBuffer->mVertexBufferID);
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * frame.mVertices.size(), &frame.mVertices[0]);
