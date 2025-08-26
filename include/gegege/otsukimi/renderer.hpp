@@ -109,6 +109,7 @@ void main()
         FrameData& frame = getCurrentFrame();
         for (Texture* tex : frame.mTextTextures) {
             glDeleteTextures(1, &tex->mTexID);
+            delete tex;
         }
         frame.mTextTextures.clear();
         frame.mTextures.clear();
