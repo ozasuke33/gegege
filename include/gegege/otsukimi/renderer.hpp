@@ -361,6 +361,44 @@ void main()
 
     void drawText(TTF_Font* font, float x, float y, const std::string& text)
     {
+        if (TTF_GetFontOutline(font) > 0) {
+            SDL_Color color = {0, 0, 0, SDL_ALPHA_OPAQUE};
+            SDL_Surface* surf = TTF_RenderText_Blended_Wrapped(font, text.c_str(), 0, color, 0);
+            if (!surf) {
+                SDL_Log("%s", SDL_GetError());
+            }
+
+            SDL_Surface* rgbaSurf = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_ABGR8888);
+            if (!rgbaSurf) {
+                SDL_Log("%s", SDL_GetError());
+            }
+            SDL_DestroySurface(surf);
+
+            Texture* tex = new Texture();
+            tex->mWidth = rgbaSurf->w;
+            tex->mHeight = rgbaSurf->h;
+
+            glGenTextures(1, &tex->mTexID);
+            SDL_assert_release(tex);
+            glBindTexture(GL_TEXTURE_2D, tex->mTexID);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex->mWidth, tex->mHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaSurf->pixels);
+
+            SDL_DestroySurface(rgbaSurf);
+
+            drawTexture(tex, x, y);
+
+            FrameData& frame = getCurrentFrame();
+            frame.mTextTextures.emplace_back(tex);
+        }
+
+        int outlineSize = TTF_GetFontOutline(font);
+        TTF_SetFontOutline(font, 0);
+
         SDL_Color color = {255, 255, 255, SDL_ALPHA_OPAQUE};
         SDL_Surface* surf = TTF_RenderText_Blended_Wrapped(font, text.c_str(), 0, color, 0);
         if (!surf) {
@@ -393,6 +431,8 @@ void main()
 
         FrameData& frame = getCurrentFrame();
         frame.mTextTextures.emplace_back(tex);
+
+        TTF_SetFontOutline(font, outlineSize);
     }
 };
 

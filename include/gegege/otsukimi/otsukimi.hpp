@@ -54,6 +54,16 @@ int drawText(lua_State* L)
     return 0;
 }
 
+int setFontOutline(lua_State* L)
+{
+    lua::LuaEngine lua;
+    lua.mL = L;
+    lua::LuaValue outlineSize = lua.popValue();
+    TTF_Font* font = (TTF_Font*)lua_touserdata(L, -1);
+    TTF_SetFontOutline(font, std::get<lua::LuaNumber>(outlineSize).mValue);
+    return 0;
+}
+
 struct Otsukimi {
     lua::LuaEngine mLuaEngine;
     SDL_Window* mSdlWindow;
@@ -109,6 +119,7 @@ struct Otsukimi {
         lua_register(mLuaEngine.mL, "drawTexture", drawTexture);
         lua_register(mLuaEngine.mL, "fontFind", fontFind);
         lua_register(mLuaEngine.mL, "drawText", drawText);
+        lua_register(mLuaEngine.mL, "setFontOutline", setFontOutline);
 
         std::filesystem::path path = SDL_GetBasePath();
         SDL_Log("Base Path: %s", path.generic_string().c_str());
