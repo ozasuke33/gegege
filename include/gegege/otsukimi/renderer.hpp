@@ -103,6 +103,12 @@ void main()
         {
             i.mVertexBuffer = createVBO(sizeof(Vertex) * MAX_VERTEX);
         }
+
+        glEnableVertexAttribArray(0);
+        glEnableVertexAttribArray(1);
+        glEnableVertexAttribArray(2);
+
+        glActiveTexture(GL_TEXTURE0);
     }
 
     void shutdown()
@@ -381,18 +387,14 @@ void main()
         glBindBuffer(GL_ARRAY_BUFFER, frame.mVertexBuffer->mVertexBufferID);
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * frame.mVertices.size(), &frame.mVertices[0]);
 
-        glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 0);
-        glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(2 * sizeof(float)));
-        glEnableVertexAttribArray(2);
         glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(4 * sizeof(float)));
 
         unsigned int j = 0;
         for (unsigned int i = 0; i < frame.mVertices.size(); i += 6)
         {
             Texture* tex = frame.mTextures[j];
-            glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, tex->mTexID);
             ++j;
             glDrawArrays(GL_TRIANGLES, i, 6);
