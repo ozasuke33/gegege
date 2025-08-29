@@ -46,11 +46,17 @@ int drawText(lua_State* L)
 {
     lua::LuaEngine lua;
     lua.mL = L;
+    lua::LuaValue a = lua.popValue();
+    lua::LuaValue b = lua.popValue();
+    lua::LuaValue g = lua.popValue();
+    lua::LuaValue r = lua.popValue();
     lua::LuaValue text = lua.popValue();
     lua::LuaValue y = lua.popValue();
     lua::LuaValue x = lua.popValue();
     TTF_Font* font = (TTF_Font*)lua_touserdata(L, -1);
-    gRenderer->drawText(font, std::get<lua::LuaNumber>(x).mValue, std::get<lua::LuaNumber>(y).mValue, lua::getLuaValueString(text));
+    gRenderer->drawText(font, std::get<lua::LuaNumber>(x).mValue, std::get<lua::LuaNumber>(y).mValue,
+                        lua::getLuaValueString(text),
+                        std::get<lua::LuaNumber>(r).mValue, std::get<lua::LuaNumber>(g).mValue, std::get<lua::LuaNumber>(b).mValue, std::get<lua::LuaNumber>(a).mValue);
     return 0;
 }
 
@@ -107,7 +113,8 @@ struct Otsukimi {
         if (!SDL_GL_SetSwapInterval(-1))
         {
             SDL_Log("VSYNC: %s", SDL_GetError());
-            if (!SDL_GL_SetSwapInterval(1)) {
+            if (!SDL_GL_SetSwapInterval(1))
+            {
                 SDL_Log("VSYNC: %s", SDL_GetError());
             }
         }
