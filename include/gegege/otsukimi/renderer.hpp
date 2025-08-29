@@ -25,6 +25,10 @@ struct Vertex {
     float mY;
     float mU;
     float mV;
+    float mR;
+    float mG;
+    float mB;
+    float mA;
 };
 
 struct Texture {
@@ -71,21 +75,25 @@ struct Renderer {
             R"(#version 330
 layout(location = 0)in vec2 vPosition;
 layout(location = 1)in vec2 vTexCoord;
+layout(location = 2)in vec4 vColor;
 uniform mat4 uMVP;
 out vec2 pTexCoord;
+out vec4 pColor;
 void main()
 {
     gl_Position = uMVP * vec4(vPosition.x, vPosition.y, 0.0, 1.0);
     pTexCoord = vTexCoord;
+    pColor = vColor;
 }
 )",
             R"(#version 330
 in vec2 pTexCoord;
+in vec4 pColor;
 uniform sampler2D uTex;
 out vec4 fragColor;
 void main()
 {
-    fragColor = texture(uTex, pTexCoord);
+    fragColor = texture(uTex, pTexCoord) * pColor;
 })");
         glUseProgram(mShader);
 
@@ -107,7 +115,8 @@ void main()
         mFrameNumber++;
 
         FrameData& frame = getCurrentFrame();
-        for (Texture* tex : frame.mTextTextures) {
+        for (Texture* tex : frame.mTextTextures)
+        {
             glDeleteTextures(1, &tex->mTexID);
             delete tex;
         }
@@ -230,7 +239,7 @@ void main()
         }
         else
         {
-            SDL_Log("Texture loaded: %s", basePath.generic_string().c_str());
+            SDL_Log("Texture loaded: %s %dx%d", basePath.generic_string().c_str(), tex->mWidth, tex->mHeight);
         }
 
         glGenTextures(1, &tex->mTexID);
@@ -256,35 +265,56 @@ void main()
         return mTextures[path];
     }
 
-    void drawTexture(Texture* tex, float x, float y)
+    void drawTexture(Texture* tex, float sx, float sy, float sw, float sh, float scaleX, float scaleY, float angle, float dx, float dy, float r, float g, float b, float a)
     {
         // (-1,  1)  - ( 1,  1)
         //     |           |
         // (-1, -1)  - ( 1, -1)
 
+        float sourceX = sx / tex->mWidth;
+        float sourceY = sy / tex->mHeight;
+        float sourceW = (sx + sw) / tex->mWidth;
+        float sourceH = (sy + sh) / tex->mHeight;
+
         Vertex topLeft;
-        topLeft.mX = x - (tex->mWidth / 2.0f);
-        topLeft.mY = y + (tex->mHeight / 2.0f);
-        topLeft.mU = 0.0f;
-        topLeft.mV = 0.0f;
+        topLeft.mX = -(sw / 2.0f);
+        topLeft.mY = (sh / 2.0f);
+        topLeft.mU = sourceX;
+        topLeft.mV = sourceY;
+        topLeft.mR = r;
+        topLeft.mG = g;
+        topLeft.mB = b;
+        topLeft.mA = a;
 
         Vertex topRight;
-        topRight.mX = x + (tex->mWidth / 2.0f);
-        topRight.mY = y + (tex->mHeight / 2.0f);
-        topRight.mU = 1.0f;
-        topRight.mV = 0.0f;
+        topRight.mX = (sw / 2.0f);
+        topRight.mY = (sh / 2.0f);
+        topRight.mU = sourceW;
+        topRight.mV = sourceY;
+        topRight.mR = r;
+        topRight.mG = g;
+        topRight.mB = b;
+        topRight.mA = a;
 
         Vertex bottomLeft;
-        bottomLeft.mX = x - (tex->mWidth / 2.0f);
-        bottomLeft.mY = y - (tex->mHeight / 2.0f);
-        bottomLeft.mU = 0.0f;
-        bottomLeft.mV = 1.0f;
+        bottomLeft.mX = -(sw / 2.0f);
+        bottomLeft.mY = -(sh / 2.0f);
+        bottomLeft.mU = sourceX;
+        bottomLeft.mV = sourceH;
+        bottomLeft.mR = r;
+        bottomLeft.mG = g;
+        bottomLeft.mB = b;
+        bottomLeft.mA = a;
 
         Vertex bottomRight;
-        bottomRight.mX = x + (tex->mWidth / 2.0f);
-        bottomRight.mY = y - (tex->mHeight / 2.0f);
-        bottomRight.mU = 1.0f;
-        bottomRight.mV = 1.0f;
+        bottomRight.mX = (sw / 2.0f);
+        bottomRight.mY = -(sh / 2.0f);
+        bottomRight.mU = sourceW;
+        bottomRight.mV = sourceH;
+        bottomRight.mR = r;
+        bottomRight.mG = g;
+        bottomRight.mB = b;
+        bottomRight.mA = a;
 
         FrameData& frame = getCurrentFrame();
 
@@ -294,6 +324,37 @@ void main()
         }
 
         frame.mTextures.emplace_back(tex);
+
+        glm::mat4 Translate = glm::translate(glm::mat4(1.0f), glm::vec3(dx, dy, 0.0f));
+        glm::mat4 Rotate = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 0.0f, 1.0f));
+        glm::mat4 Scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaleX, scaleY, 1.0f));
+        glm::mat4 TRS = Translate * Rotate * Scale;
+
+        glm::vec4 v(0.0f, 0.0f, 0.0f, 1.0f);
+
+        v.x = topLeft.mX;
+        v.y = topLeft.mY;
+        v = TRS * v;
+        topLeft.mX = v.x;
+        topLeft.mY = v.y;
+
+        v.x = topRight.mX;
+        v.y = topRight.mY;
+        v = TRS * v;
+        topRight.mX = v.x;
+        topRight.mY = v.y;
+
+        v.x = bottomLeft.mX;
+        v.y = bottomLeft.mY;
+        v = TRS * v;
+        bottomLeft.mX = v.x;
+        bottomLeft.mY = v.y;
+
+        v.x = bottomRight.mX;
+        v.y = bottomRight.mY;
+        v = TRS * v;
+        bottomRight.mX = v.x;
+        bottomRight.mY = v.y;
 
         frame.mVertices.emplace_back(topLeft);
         frame.mVertices.emplace_back(bottomLeft);
@@ -317,9 +378,11 @@ void main()
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertex) * frame.mVertices.size(), &frame.mVertices[0]);
 
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 0);
         glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(2 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(4 * sizeof(float)));
 
         unsigned int j = 0;
         for (unsigned int i = 0; i < frame.mVertices.size(); i += 6)
@@ -347,7 +410,8 @@ void main()
         basePath.append(path);
 
         TTF_Font* font = TTF_OpenFont(basePath.generic_string().c_str(), ptSize);
-        if (!font) {
+        if (!font)
+        {
             SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Font failed to load: %s", SDL_GetError());
         }
         else
@@ -364,12 +428,14 @@ void main()
     {
         SDL_Color color = {Uint8(r * 255), Uint8(g * 255), Uint8(b * 255), Uint8(a * 255)};
         SDL_Surface* surf = TTF_RenderText_Blended_Wrapped(font, text.c_str(), 0, color, 0);
-        if (!surf) {
+        if (!surf)
+        {
             SDL_Log("%s", SDL_GetError());
         }
 
         SDL_Surface* rgbaSurf = SDL_ConvertSurface(surf, SDL_PIXELFORMAT_ABGR8888);
-        if (!rgbaSurf) {
+        if (!rgbaSurf)
+        {
             SDL_Log("%s", SDL_GetError());
         }
         SDL_DestroySurface(surf);
@@ -390,7 +456,7 @@ void main()
 
         SDL_DestroySurface(rgbaSurf);
 
-        drawTexture(tex, x, y);
+        drawTexture(tex, 0, 0, tex->mWidth, tex->mHeight, 1, 1, 0, x, y, 1, 1, 1, 1);
 
         FrameData& frame = getCurrentFrame();
         frame.mTextTextures.emplace_back(tex);
