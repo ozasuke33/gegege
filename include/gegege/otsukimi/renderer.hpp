@@ -330,26 +330,30 @@ void main()
         glm::mat4 Scale = glm::scale(glm::mat4(1.0f), glm::vec3(scaleX, scaleY, 1.0f));
         glm::mat4 TRS = Translate * Rotate * Scale;
 
-        glm::vec4 v(0.0f, 0.0f, 0.0f, 1.0f);
+        glm::vec4 v;
 
+        v = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
         v.x = topLeft.mX;
         v.y = topLeft.mY;
         v = TRS * v;
         topLeft.mX = v.x;
         topLeft.mY = v.y;
 
+        v = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
         v.x = topRight.mX;
         v.y = topRight.mY;
         v = TRS * v;
         topRight.mX = v.x;
         topRight.mY = v.y;
 
+        v = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
         v.x = bottomLeft.mX;
         v.y = bottomLeft.mY;
         v = TRS * v;
         bottomLeft.mX = v.x;
         bottomLeft.mY = v.y;
 
+        v = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
         v.x = bottomRight.mX;
         v.y = bottomRight.mY;
         v = TRS * v;
