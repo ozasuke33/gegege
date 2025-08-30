@@ -33,6 +33,7 @@ struct Vertex {
 
 struct Texture {
     GLuint mTexID;
+    GLuint mFramebufferID;
     int mWidth;
     int mHeight;
 };
@@ -47,6 +48,7 @@ struct FrameData {
     std::vector<Texture*> mTextTextures;
     std::vector<Texture*> mTextures;
     std::vector<Vertex> mVertices;
+    Texture* mFrameBuffer;
 };
 
 struct Renderer {
@@ -60,6 +62,9 @@ struct Renderer {
 
     std::unordered_map<std::string, Texture*> mTextures;
     std::unordered_map<std::string, TTF_Font*> mFonts;
+
+    int mTargetWidth;
+    int mTargetHeight;
 
     void startup()
     {
@@ -102,6 +107,7 @@ void main()
         for (auto& i : mFrames)
         {
             i.mVertexBuffer = createVBO(sizeof(Vertex) * MAX_VERTEX);
+            i.mFrameBuffer = createFBO(mTargetWidth, mTargetHeight);
         }
 
         glActiveTexture(GL_TEXTURE0);
@@ -126,9 +132,28 @@ void main()
         frame.mTextures.clear();
         frame.mVertices.clear();
 
-        glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glBindFramebuffer(GL_FRAMEBUFFER, frame.mFrameBuffer->mFramebufferID);
+
+        glViewport(0, 0, mTargetWidth, mTargetHeight);
         glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glEnable(GL_BLEND);
+        glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
+
+        glm::mat4 ortho = glm::ortho(float(-mTargetWidth) / 2.0f, float(mTargetWidth) / 2.0f, float(-mTargetHeight) / 2.0f, float(mTargetHeight) / 2.0f);
+
+        glUniformMatrix4fv(mMVPLocation, 1, GL_FALSE, glm::value_ptr(ortho));
+    }
+
+    void postUpdate(GLint viewportX, GLint viewportY, GLsizei viewportWidth, GLsizei viewportHeight)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
 
         glEnable(GL_BLEND);
         glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
@@ -137,6 +162,9 @@ void main()
         glm::mat4 ortho = glm::ortho(float(-viewportWidth) / 2.0f, float(viewportWidth) / 2.0f, float(-viewportHeight) / 2.0f, float(viewportHeight) / 2.0f);
 
         glUniformMatrix4fv(mMVPLocation, 1, GL_FALSE, glm::value_ptr(ortho));
+
+        FrameData& frame = getCurrentFrame();
+        drawTexture(frame.mFrameBuffer, 0, 0, frame.mFrameBuffer->mWidth, frame.mFrameBuffer->mHeight, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     GLuint createShader(const char* vert, const char* frag)
@@ -203,6 +231,39 @@ void main()
         glDeleteShader(fs);
 
         return program;
+    }
+
+    Texture* createFBO(int width, int height)
+    {
+        Texture* fbo = new Texture();
+        glGenFramebuffers(1, &fbo->mFramebufferID);
+        SDL_assert_release(fbo->mFramebufferID);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo->mFramebufferID);
+
+        glGenTextures(1, &fbo->mTexID);
+        SDL_assert_release(fbo->mTexID);
+        glBindTexture(GL_TEXTURE_2D, fbo->mTexID);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fbo->mTexID, 0);
+
+        fbo->mWidth = width;
+        fbo->mHeight = height;
+
+        GLenum attachments[2] = {GL_COLOR_ATTACHMENT0, GL_NONE};
+        glDrawBuffers(1, attachments);
+
+        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        SDL_assert_release(status == GL_FRAMEBUFFER_COMPLETE);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        return fbo;
     }
 
     VBO* createVBO(GLsizeiptr numBytes)

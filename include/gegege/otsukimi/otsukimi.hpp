@@ -132,7 +132,7 @@ struct Otsukimi {
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-        mSdlWindow = SDL_CreateWindow("gegege::Otsukimi", 640, 480, SDL_WINDOW_OPENGL);
+        mSdlWindow = SDL_CreateWindow("gegege::Otsukimi", 640, 480, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
         if (!mSdlWindow)
         {
             SDL_Log("Otsukimi: Couldn't create window: %s", SDL_GetError());
@@ -160,6 +160,8 @@ struct Otsukimi {
             }
         }
 
+        mRenderer.mTargetWidth = 640;
+        mRenderer.mTargetHeight = 480;
         mRenderer.startup();
         gRenderer = &mRenderer;
 
@@ -254,6 +256,10 @@ struct Otsukimi {
             mPrevTime = now;
 
             mLuaEngine.call("update", gegege::lua::LuaNumber::make(dt));
+
+            mRenderer.flush();
+
+            mRenderer.postUpdate(0, 0, w, h);
 
             mRenderer.flush();
 
