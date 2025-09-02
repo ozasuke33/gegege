@@ -118,6 +118,7 @@ struct Otsukimi {
     bool mStopRendering = false;
     uint64_t mPrevTime;
     Renderer mRenderer;
+    bool mFullscreen;
 
     void startup()
     {
@@ -129,10 +130,12 @@ struct Otsukimi {
             SDL_Log("Otsukimi: Couldn't initialize SDL: %s", SDL_GetError());
         }
 
+        mFullscreen = false;
+
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-        mSdlWindow = SDL_CreateWindow("gegege::Otsukimi", 640, 480, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+        mSdlWindow = SDL_CreateWindow("gegege::Otsukimi", 1280, 720, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
         if (!mSdlWindow)
         {
             SDL_Log("Otsukimi: Couldn't create window: %s", SDL_GetError());
@@ -160,8 +163,8 @@ struct Otsukimi {
             }
         }
 
-        mRenderer.mTargetWidth = 640;
-        mRenderer.mTargetHeight = 480;
+        mRenderer.mTargetWidth = 1280;
+        mRenderer.mTargetHeight = 720;
         mRenderer.startup();
         gRenderer = &mRenderer;
 
@@ -238,6 +241,15 @@ struct Otsukimi {
                     mStopRendering = false;
                     mPrevTime = SDL_GetPerformanceCounter();
                     SDL_Delay(1);
+                }
+
+                if (e.type == SDL_EVENT_KEY_DOWN)
+                {
+                    if (e.key.mod & SDL_KMOD_ALT && e.key.key == SDLK_RETURN)
+                    {
+                        mFullscreen = !mFullscreen;
+                        SDL_SetWindowFullscreen(mSdlWindow, mFullscreen);
+                    }
                 }
             }
 

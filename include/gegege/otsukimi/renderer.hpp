@@ -163,8 +163,9 @@ void main()
 
         glUniformMatrix4fv(mMVPLocation, 1, GL_FALSE, glm::value_ptr(ortho));
 
+        float scale = std::min(float(viewportWidth) / mTargetWidth, float(viewportHeight) / mTargetHeight);
         FrameData& frame = getCurrentFrame();
-        drawTexture(frame.mFrameBuffer, 0, 0, frame.mFrameBuffer->mWidth, frame.mFrameBuffer->mHeight, 1.0f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+        drawTexture(frame.mFrameBuffer, 0, 0, frame.mFrameBuffer->mWidth, frame.mFrameBuffer->mHeight, scale, -scale, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     GLuint createShader(const char* vert, const char* frag)
@@ -331,6 +332,8 @@ void main()
         }
         stbi_image_free(data);
 
+        glBindTexture(GL_TEXTURE_2D, 0);
+
         mTextures[path] = tex;
 
         return mTextures[path];
@@ -461,6 +464,9 @@ void main()
             glDrawArrays(GL_TRIANGLES, i, 6);
         }
 
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
         frame.mVertices.clear();
         frame.mTextures.clear();
     }
@@ -520,6 +526,8 @@ void main()
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, tex->mWidth, tex->mHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgbaSurf->pixels);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         SDL_DestroySurface(rgbaSurf);
 
