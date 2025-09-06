@@ -243,6 +243,37 @@ struct Otsukimi {
                     SDL_Delay(1);
                 }
 
+                if (e.type == SDL_EVENT_WINDOW_RESIZED) {
+                    int type = lua_getglobal(mLuaEngine.mL, "resize");
+                    if (type == LUA_TFUNCTION) {
+                        mLuaEngine.call("resize", lua::LuaNumber::make(e.window.data1), lua::LuaNumber::make(e.window.data2));
+                    }
+                    lua_pop(mLuaEngine.mL, 1);
+                }
+
+                if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+                {
+                    int type = lua_getglobal(mLuaEngine.mL, "mousepressed");
+                    if (type == LUA_TFUNCTION)
+                    {
+                        mLuaEngine.pushValue(lua::LuaNumber::make(e.button.x));
+                        mLuaEngine.pushValue(lua::LuaNumber::make(e.button.y));
+                        lua_newtable(mLuaEngine.mL);
+                        lua_pushboolean(mLuaEngine.mL, e.button.button == SDL_BUTTON_LEFT);
+                        lua_rawseti(mLuaEngine.mL, -2, 1);
+                        lua_pushboolean(mLuaEngine.mL, e.button.button == SDL_BUTTON_MIDDLE);
+                        lua_rawseti(mLuaEngine.mL, -2, 2);
+                        lua_pushboolean(mLuaEngine.mL, e.button.button == SDL_BUTTON_RIGHT);
+                        lua_rawseti(mLuaEngine.mL, -2, 3);
+                        lua_pushboolean(mLuaEngine.mL, e.button.button == SDL_BUTTON_X1);
+                        lua_rawseti(mLuaEngine.mL, -2, 4);
+                        lua_pushboolean(mLuaEngine.mL, e.button.button == SDL_BUTTON_X2);
+                        lua_rawseti(mLuaEngine.mL, -2, 5);
+                        mLuaEngine.pcall(3, 1);
+                    }
+                    lua_pop(mLuaEngine.mL, 1);
+                }
+
                 if (e.type == SDL_EVENT_KEY_DOWN)
                 {
                     if (e.key.mod & SDL_KMOD_ALT && e.key.key == SDLK_RETURN)
