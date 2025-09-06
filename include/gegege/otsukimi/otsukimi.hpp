@@ -250,6 +250,17 @@ struct Otsukimi {
                         mFullscreen = !mFullscreen;
                         SDL_SetWindowFullscreen(mSdlWindow, mFullscreen);
                     }
+
+                    std::string keyName(SDL_GetKeyName(e.key.key));
+                    std::string scancodeName(SDL_GetScancodeName(e.key.scancode));
+                    bool isRepeat = e.key.repeat;
+
+                    int type = lua_getglobal(mLuaEngine.mL, "keypressed");
+                    mLuaEngine.popValue();
+                    if (type == LUA_TFUNCTION)
+                    {
+                        mLuaEngine.call("keypressed", lua::LuaString::make(keyName), lua::LuaString::make(scancodeName), lua::LuaBoolean::make(isRepeat));
+                    }
                 }
             }
 
@@ -267,7 +278,12 @@ struct Otsukimi {
             double dt = double(now - mPrevTime) / SDL_GetPerformanceFrequency();
             mPrevTime = now;
 
-            mLuaEngine.call("update", gegege::lua::LuaNumber::make(dt));
+            int type = lua_getglobal(mLuaEngine.mL, "update");
+            mLuaEngine.popValue();
+            if (type == LUA_TFUNCTION)
+            {
+                mLuaEngine.call("update", gegege::lua::LuaNumber::make(dt));
+            }
 
             mRenderer.flush();
 
