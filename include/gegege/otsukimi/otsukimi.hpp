@@ -10,6 +10,38 @@ namespace gegege::otsukimi {
 
 Renderer* gRenderer;
 
+int getMouseCoordinateToScreenCoordinateX(lua_State* L)
+{
+    lua::LuaEngine lua;
+    lua.mL = L;
+    lua::LuaValue mouseX = lua.popValue();
+
+    float NdcX = 2.0f * std::get<lua::LuaNumber>(mouseX).mValue / gRenderer->mScreenWidth - 1.0f;
+    glm::mat4 ortho = glm::ortho(float(-gRenderer->mScreenWidth) / 2.0f, float(gRenderer->mScreenWidth) / 2.0f, float(-gRenderer->mScreenHeight) / 2.0f, float(gRenderer->mScreenHeight) / 2.0f);
+    float scale = std::min(float(gRenderer->mScreenWidth) / gRenderer->mTargetWidth, float(gRenderer->mScreenHeight) / gRenderer->mTargetHeight);
+    glm::vec4 orthoCoords = glm::inverse(ortho) * glm::vec4(NdcX / scale, 0.0f, 0.0f, 1.0f);
+
+    lua.pushValue(lua::LuaNumber::make(orthoCoords.x));
+
+    return 1;
+}
+
+int getMouseCoordinateToScreenCoordinateY(lua_State* L)
+{
+    lua::LuaEngine lua;
+    lua.mL = L;
+    lua::LuaValue mouseY = lua.popValue();
+
+    float NdcY = 1.0f - 2.0f * std::get<lua::LuaNumber>(mouseY).mValue / gRenderer->mScreenHeight;
+    glm::mat4 ortho = glm::ortho(float(-gRenderer->mScreenWidth) / 2.0f, float(gRenderer->mScreenWidth) / 2.0f, float(-gRenderer->mScreenHeight) / 2.0f, float(gRenderer->mScreenHeight) / 2.0f);
+    float scale = std::min(float(gRenderer->mScreenWidth) / gRenderer->mTargetWidth, float(gRenderer->mScreenHeight) / gRenderer->mTargetHeight);
+    glm::vec4 orthoCoords = glm::inverse(ortho) * glm::vec4(0.0f, NdcY / scale, 0.0f, 1.0f);
+
+    lua.pushValue(lua::LuaNumber::make(orthoCoords.y));
+
+    return 1;
+}
+
 int textureFind(lua_State* L)
 {
     lua::LuaEngine lua;
@@ -168,6 +200,8 @@ struct Otsukimi {
         mRenderer.startup();
         gRenderer = &mRenderer;
 
+        lua_register(mLuaEngine.mL, "getMouseCoordinateToScreenCoordinateX", getMouseCoordinateToScreenCoordinateX);
+        lua_register(mLuaEngine.mL, "getMouseCoordinateToScreenCoordinateY", getMouseCoordinateToScreenCoordinateY);
         lua_register(mLuaEngine.mL, "textureFind", textureFind);
         lua_register(mLuaEngine.mL, "getTextureWidth", getTextureWidth);
         lua_register(mLuaEngine.mL, "getTextureHeight", getTextureHeight);
@@ -243,17 +277,22 @@ struct Otsukimi {
                     SDL_Delay(1);
                 }
 
-                if (e.type == SDL_EVENT_WINDOW_RESIZED) {
-                    int type = lua_getglobal(mLuaEngine.mL, "resize");
-                    if (type == LUA_TFUNCTION) {
-                        mLuaEngine.call("resize", lua::LuaNumber::make(e.window.data1), lua::LuaNumber::make(e.window.data2));
+                if (e.type == SDL_EVENT_WINDOW_RESIZED)
+                {
+                    gRenderer->mScreenWidth = e.window.data1;
+                    gRenderer->mScreenHeight = e.window.data2;
+
+                    int type = lua_getglobal(mLuaEngine.mL, "onResized");
+                    if (type == LUA_TFUNCTION)
+                    {
+                        mLuaEngine.call("onResized", lua::LuaNumber::make(e.window.data1), lua::LuaNumber::make(e.window.data2));
                     }
                     lua_pop(mLuaEngine.mL, 1);
                 }
 
                 if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
                 {
-                    int type = lua_getglobal(mLuaEngine.mL, "mousepressed");
+                    int type = lua_getglobal(mLuaEngine.mL, "onMousePressed");
                     if (type == LUA_TFUNCTION)
                     {
                         mLuaEngine.pushValue(lua::LuaNumber::make(e.button.x));
@@ -286,11 +325,11 @@ struct Otsukimi {
                     std::string scancodeName(SDL_GetScancodeName(e.key.scancode));
                     bool isRepeat = e.key.repeat;
 
-                    int type = lua_getglobal(mLuaEngine.mL, "keypressed");
+                    int type = lua_getglobal(mLuaEngine.mL, "onKeyPressed");
                     mLuaEngine.popValue();
                     if (type == LUA_TFUNCTION)
                     {
-                        mLuaEngine.call("keypressed", lua::LuaString::make(keyName), lua::LuaString::make(scancodeName), lua::LuaBoolean::make(isRepeat));
+                        mLuaEngine.call("onKeyPressed", lua::LuaString::make(keyName), lua::LuaString::make(scancodeName), lua::LuaBoolean::make(isRepeat));
                     }
                 }
             }
@@ -309,11 +348,11 @@ struct Otsukimi {
             double dt = double(now - mPrevTime) / SDL_GetPerformanceFrequency();
             mPrevTime = now;
 
-            int type = lua_getglobal(mLuaEngine.mL, "update");
+            int type = lua_getglobal(mLuaEngine.mL, "onUpdate");
             mLuaEngine.popValue();
             if (type == LUA_TFUNCTION)
             {
-                mLuaEngine.call("update", gegege::lua::LuaNumber::make(dt));
+                mLuaEngine.call("onUpdate", gegege::lua::LuaNumber::make(dt));
             }
 
             mRenderer.flush();

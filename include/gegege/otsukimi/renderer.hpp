@@ -65,6 +65,8 @@ struct Renderer {
 
     int mTargetWidth;
     int mTargetHeight;
+    int mScreenWidth;
+    int mScreenHeight;
 
     void startup()
     {
@@ -145,6 +147,9 @@ void main()
         glm::mat4 ortho = glm::ortho(float(-mTargetWidth) / 2.0f, float(mTargetWidth) / 2.0f, float(-mTargetHeight) / 2.0f, float(mTargetHeight) / 2.0f);
 
         glUniformMatrix4fv(mMVPLocation, 1, GL_FALSE, glm::value_ptr(ortho));
+
+        mScreenWidth = viewportWidth;
+        mScreenHeight = viewportHeight;
     }
 
     void postUpdate(GLint viewportX, GLint viewportY, GLsizei viewportWidth, GLsizei viewportHeight)
