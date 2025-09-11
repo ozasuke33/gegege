@@ -1,4 +1,4 @@
-#include "../../include/gegege/lua_engine/lua_engine.hpp"
+#include <gegege/lua_engine/lua_engine.hpp>
 
 int main()
 {

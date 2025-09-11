@@ -20,11 +20,6 @@ target_link_libraries(otsukimi_cpp PUBLIC
     glm::glm-header-only
     imgui)
 
-target_include_directories(otsukimi_cpp
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-)
-
 add_executable(otsukimi WIN32
     gegege/otsukimi/main.cpp
 )
