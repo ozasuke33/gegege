@@ -65,8 +65,8 @@ struct Otsukimi {
             }
         }
 
-        mRenderer.mTargetWidth = 1280;
-        mRenderer.mTargetHeight = 720;
+        mRenderer.mTargetOffscreenWidth = 1280;
+        mRenderer.mTargetOffscreenHeight = 720;
         mRenderer.startup();
         gRenderer = &mRenderer;
 

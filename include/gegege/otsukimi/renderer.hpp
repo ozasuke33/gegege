@@ -63,8 +63,8 @@ struct Renderer {
     std::unordered_map<std::string, Texture*> mTextures;
     std::unordered_map<std::string, TTF_Font*> mFonts;
 
-    int mTargetWidth;
-    int mTargetHeight;
+    int mTargetOffscreenWidth;
+    int mTargetOffscreenHeight;
     int mScreenWidth;
     int mScreenHeight;
 
@@ -109,7 +109,7 @@ void main()
         for (auto& i : mFrames)
         {
             i.mVertexBuffer = createVBO(sizeof(Vertex) * MAX_VERTEX);
-            i.mFrameBuffer = createFBO(mTargetWidth, mTargetHeight);
+            i.mFrameBuffer = createFBO(mTargetOffscreenWidth, mTargetOffscreenHeight);
         }
 
         glActiveTexture(GL_TEXTURE0);
@@ -136,7 +136,7 @@ void main()
 
         glBindFramebuffer(GL_FRAMEBUFFER, frame.mFrameBuffer->mFramebufferID);
 
-        glViewport(0, 0, mTargetWidth, mTargetHeight);
+        glViewport(0, 0, mTargetOffscreenWidth, mTargetOffscreenHeight);
         glClearColor(0.0f, 0.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -144,7 +144,7 @@ void main()
         glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
         glBlendEquationSeparate(GL_FUNC_ADD, GL_FUNC_ADD);
 
-        glm::mat4 ortho = glm::ortho(float(-mTargetWidth) / 2.0f, float(mTargetWidth) / 2.0f, float(-mTargetHeight) / 2.0f, float(mTargetHeight) / 2.0f);
+        glm::mat4 ortho = glm::ortho(float(-mTargetOffscreenWidth) / 2.0f, float(mTargetOffscreenWidth) / 2.0f, float(-mTargetOffscreenHeight) / 2.0f, float(mTargetOffscreenHeight) / 2.0f);
 
         glUniformMatrix4fv(mMVPLocation, 1, GL_FALSE, glm::value_ptr(ortho));
 
@@ -168,7 +168,7 @@ void main()
 
         glUniformMatrix4fv(mMVPLocation, 1, GL_FALSE, glm::value_ptr(ortho));
 
-        float scale = std::min(float(viewportWidth) / mTargetWidth, float(viewportHeight) / mTargetHeight);
+        float scale = std::min(float(viewportWidth) / mTargetOffscreenWidth, float(viewportHeight) / mTargetOffscreenHeight);
         FrameData& frame = getCurrentFrame();
         drawTexture(frame.mFrameBuffer, 0, 0, frame.mFrameBuffer->mWidth, frame.mFrameBuffer->mHeight, scale, -scale, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
     }
