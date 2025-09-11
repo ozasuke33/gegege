@@ -1,4 +1,5 @@
 #include <gegege/otsukimi/otsukimi.hpp>
+#include <gegege/otsukimi/lua_app.hpp>
 #include <vulkan/vulkan.hpp>
 
 #include <windows.h>
@@ -15,7 +16,7 @@ int WinMain(
     LPSTR lpCmdLine,
     int nShowCmd)
 {
-    gegege::otsukimi::Otsukimi otsukimi;
+    gegege::otsukimi::LuaApp otsukimi;
     otsukimi.startup();
     otsukimi.run();
     otsukimi.shutdown();
