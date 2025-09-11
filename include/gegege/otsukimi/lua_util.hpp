@@ -1,11 +1,11 @@
 #pragma once
 
-#include <gegege/lua_engine/lua_engine.hpp>
-#include <gegege/otsukimi/util.hpp>
+#include "../lua_engine/lua_engine.hpp"
+#include "util.hpp"
 
 namespace gegege::otsukimi {
 
-int getMouseCoordinateToScreenCoordinateX(lua_State* L)
+inline int lua_getMouseCoordinateToScreenCoordinateX(lua_State* L)
 {
     lua::LuaEngine lua;
     lua.mL = L;
@@ -16,7 +16,7 @@ int getMouseCoordinateToScreenCoordinateX(lua_State* L)
     return 1;
 }
 
-int getMouseCoordinateToScreenCoordinateY(lua_State* L)
+inline int lua_getMouseCoordinateToScreenCoordinateY(lua_State* L)
 {
     lua::LuaEngine lua;
     lua.mL = L;

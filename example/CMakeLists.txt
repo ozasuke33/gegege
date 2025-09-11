@@ -1,7 +1,7 @@
 add_executable(example_gegege_helloworld
     helloworld/helloworld.cpp
 )
-target_link_libraries(example_gegege_helloworld gegege_cpp)
+target_link_libraries(example_gegege_helloworld otsukimi_cpp)
 
 set_target_properties(example_gegege_helloworld PROPERTIES
     CXX_STANDARD 20

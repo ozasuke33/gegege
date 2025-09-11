@@ -14,11 +14,6 @@ FetchContent_MakeAvailable(stb)
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
 
-FetchContent_Declare(VMA
-    URL https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/archive/refs/tags/v3.2.0.tar.gz
-)
-FetchContent_MakeAvailable(VMA)
-
 FetchContent_Declare(lua
     URL https://github.com/lua/lua/archive/refs/tags/v5.4.8.tar.gz
 )
@@ -73,13 +68,13 @@ add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
 )
 target_include_directories(imgui PUBLIC
     ${imgui_SOURCE_DIR}
     ${imgui_SOURCE_DIR}/backends
 )
-target_link_libraries(imgui PUBLIC Vulkan::Vulkan SDL3::SDL3)
+target_link_libraries(imgui PUBLIC SDL3::SDL3)
 
 FetchContent_Declare(glm
     URL https://github.com/g-truc/glm/archive/refs/tags/1.0.1.tar.gz

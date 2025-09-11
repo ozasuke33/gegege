@@ -6,7 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 
-#include <gegege/otsukimi/gl.h>
+#include "gl.h"
 
 #include <string>
 #include <unordered_map>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <gegege/otsukimi/otsukimi.hpp>
+#include "otsukimi.hpp"
 
 namespace gegege::otsukimi {
 
@@ -9,15 +9,15 @@ struct LuaApp : Otsukimi {
     {
         Otsukimi::startup();
 
-        lua_register(mLuaEngine.mL, "getMouseCoordinateToScreenCoordinateX", getMouseCoordinateToScreenCoordinateX);
-        lua_register(mLuaEngine.mL, "getMouseCoordinateToScreenCoordinateY", getMouseCoordinateToScreenCoordinateY);
-        lua_register(mLuaEngine.mL, "textureFind", textureFind);
-        lua_register(mLuaEngine.mL, "getTextureWidth", getTextureWidth);
-        lua_register(mLuaEngine.mL, "getTextureHeight", getTextureHeight);
-        lua_register(mLuaEngine.mL, "drawTexture", drawTexture);
-        lua_register(mLuaEngine.mL, "fontFind", fontFind);
-        lua_register(mLuaEngine.mL, "drawText", drawText);
-        lua_register(mLuaEngine.mL, "setFontOutline", setFontOutline);
+        lua_register(mLuaEngine.mL, "getMouseCoordinateToScreenCoordinateX", lua_getMouseCoordinateToScreenCoordinateX);
+        lua_register(mLuaEngine.mL, "getMouseCoordinateToScreenCoordinateY", lua_getMouseCoordinateToScreenCoordinateY);
+        lua_register(mLuaEngine.mL, "textureFind", lua_textureFind);
+        lua_register(mLuaEngine.mL, "getTextureWidth", lua_getTextureWidth);
+        lua_register(mLuaEngine.mL, "getTextureHeight", lua_getTextureHeight);
+        lua_register(mLuaEngine.mL, "drawTexture", lua_drawTexture);
+        lua_register(mLuaEngine.mL, "fontFind", lua_fontFind);
+        lua_register(mLuaEngine.mL, "drawText", lua_drawText);
+        lua_register(mLuaEngine.mL, "setFontOutline", lua_setFontOutline);
 
         std::filesystem::path path = SDL_GetBasePath();
         SDL_Log("Base Path: %s", path.generic_string().c_str());

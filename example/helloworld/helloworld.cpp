@@ -1,5 +1,4 @@
-#include <gegege/lua_engine/lua_engine.hpp>
-#include <gegege/vulkan_engine/vulkan_engine.hpp>
+#include "../../include/gegege/lua_engine/lua_engine.hpp"
 
 int main()
 {
@@ -23,9 +22,5 @@ end)");
     SDL_Log("engine = %s", getLuaValueString(lua_engine.getGlobal("engine")).c_str());
     lua_engine.shutdown();
 
-    gegege::vulkan::VulkanEngine vulkan_engine{};
-    vulkan_engine.startup();
-    vulkan_engine.run();
-    vulkan_engine.shutdown();
     return 0;
 }

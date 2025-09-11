@@ -1,14 +1,7 @@
-#include <gegege/otsukimi/otsukimi.hpp>
-#include <gegege/otsukimi/lua_app.hpp>
-#include <vulkan/vulkan.hpp>
+#include "../../../include/gegege/otsukimi/otsukimi.hpp"
+#include "../../../include/gegege/otsukimi/lua_app.hpp"
 
 #include <windows.h>
-
-#define GLAD_GL_IMPLEMENTATION
-#include <gegege/otsukimi/gl.h>
-
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 
 int WinMain(
     HINSTANCE hInstance,

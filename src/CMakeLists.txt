@@ -1,16 +1,28 @@
-add_library(gegege_cpp STATIC
-    gegege/vulkan_engine/vulkan_engine.cpp
+
+add_library(otsukimi_cpp STATIC
+    gegege/otsukimi/otsukimi.cpp
+    gegege/otsukimi/graphics.cpp
+    gegege/otsukimi/util.cpp
 )
 
-target_link_libraries(gegege_cpp PUBLIC
-    Vulkan::Vulkan
-    VulkanMemoryAllocator
+set_target_properties(otsukimi_cpp PROPERTIES
+    CXX_STANDARD 20
+    CXX_EXTENSIONS OFF
+    CXX_STANDARD_REQUIRED ON
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+
+target_link_libraries(otsukimi_cpp PUBLIC
     SDL3::SDL3
     SDL3_ttf::SDL3_ttf
     stb
     lua
     glm::glm-header-only
-    imgui
+    imgui)
+
+target_include_directories(otsukimi_cpp
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
 add_executable(otsukimi WIN32
@@ -21,7 +33,7 @@ set_target_properties(otsukimi PROPERTIES
     CXX_STANDARD 20
     CXX_EXTENSIONS OFF
     CXX_STANDARD_REQUIRED ON
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 
 if(WIN32)
@@ -37,4 +49,8 @@ if(WIN32)
     )
 endif()
 
-target_link_libraries(otsukimi PUBLIC gegege_cpp)
+target_link_libraries(otsukimi PUBLIC
+    otsukimi_cpp)
+
+
+

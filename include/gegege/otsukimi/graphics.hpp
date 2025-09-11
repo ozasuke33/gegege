@@ -6,39 +6,18 @@ namespace gegege::otsukimi {
 
 extern Renderer* gRenderer;
 
-Texture* textureFind(const std::string& path)
-{
-    return gRenderer->textureFind(path);
-}
+Texture* textureFind(const std::string& path);
 
-int getTextureWidth(Texture* tex)
-{
-    return tex->mWidth;
-}
+int getTextureWidth(Texture* tex);
 
-int getTextureHeight(Texture* tex)
-{
-    return tex->mHeight;
-}
+int getTextureHeight(Texture* tex);
 
-void drawTexture(Texture* tex, float sx, float sy, float sw, float sh, float scaleX, float scaleY, float angle, float dx, float dy, float r, float g, float b, float a)
-{
-    gRenderer->drawTexture(tex, sx, sy, sw, sh, scaleX, scaleY, angle, dx, dy, r, g, b, a);
-}
+void drawTexture(Texture* tex, float sx, float sy, float sw, float sh, float scaleX, float scaleY, float angle, float dx, float dy, float r, float g, float b, float a);
 
-TTF_Font* fontFind(const std::string& path, float ptSize)
-{
-    return gRenderer->fontFind(path, ptSize);
-}
+TTF_Font* fontFind(const std::string& path, float ptSize);
 
-void drawText(TTF_Font* font, float x, float y, const std::string& text, float r, float g, float b, float a)
-{
-    gRenderer->drawText(font, x, y, text, r, g, b, a);
-}
+void drawText(TTF_Font* font, float x, float y, const std::string& text, float r, float g, float b, float a);
 
-void setFontOutline(TTF_Font* font, int outline)
-{
-    TTF_SetFontOutline(font, outline);
-}
+void setFontOutline(TTF_Font* font, int outline);
 
 } // namespace gegege::otsukimi

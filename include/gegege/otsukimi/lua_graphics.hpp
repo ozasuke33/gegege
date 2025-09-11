@@ -1,11 +1,11 @@
 #pragma once
 
-#include <gegege/lua_engine/lua_engine.hpp>
-#include <gegege/otsukimi/graphics.hpp>
+#include "../lua_engine/lua_engine.hpp"
+#include "graphics.hpp"
 
 namespace gegege::otsukimi {
 
-int textureFind(lua_State* L)
+inline int lua_textureFind(lua_State* L)
 {
     lua::LuaEngine lua;
     lua.mL = L;
@@ -15,7 +15,7 @@ int textureFind(lua_State* L)
     return 1;
 }
 
-int getTextureWidth(lua_State* L)
+inline int lua_getTextureWidth(lua_State* L)
 {
     lua::LuaEngine lua;
     lua.mL = L;
@@ -24,7 +24,7 @@ int getTextureWidth(lua_State* L)
     return 1;
 }
 
-int getTextureHeight(lua_State* L)
+inline int lua_getTextureHeight(lua_State* L)
 {
     lua::LuaEngine lua;
     lua.mL = L;
@@ -33,7 +33,7 @@ int getTextureHeight(lua_State* L)
     return 1;
 }
 
-int drawTexture(lua_State* L)
+inline int lua_drawTexture(lua_State* L)
 {
     lua::LuaEngine lua;
     lua.mL = L;
@@ -67,7 +67,7 @@ int drawTexture(lua_State* L)
     return 0;
 }
 
-int fontFind(lua_State* L)
+inline int lua_fontFind(lua_State* L)
 {
     lua::LuaEngine lua;
     lua.mL = L;
@@ -78,7 +78,7 @@ int fontFind(lua_State* L)
     return 1;
 }
 
-int drawText(lua_State* L)
+inline int lua_drawText(lua_State* L)
 {
     lua::LuaEngine lua;
     lua.mL = L;
@@ -96,7 +96,7 @@ int drawText(lua_State* L)
     return 0;
 }
 
-int setFontOutline(lua_State* L)
+inline int lua_setFontOutline(lua_State* L)
 {
     lua::LuaEngine lua;
     lua.mL = L;
