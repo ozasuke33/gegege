@@ -41,3 +41,6 @@ build
 # QtCreator
 *.user
 *.autosave
+
+# Vim
+*.swp
