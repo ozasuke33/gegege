@@ -7,6 +7,7 @@ extern "C" {
 }
 
 #include <SDL3/SDL.h>
+#include <SDL3/SDL_iostream.h>
 
 #include <string>
 #include <variant>
@@ -176,10 +177,13 @@ struct LuaEngine {
 
     void executeFile(const std::string& path)
     {
-        if (luaL_loadfile(mL, path.c_str()) != LUA_OK)
-        {
-            SDL_Log("Lua Engine: Failed to prepare file: %s", popString().c_str());
+        const char* code = (const char*)SDL_LoadFile(path.c_str(), NULL);
+        if (code == NULL) {
+            SDL_Log("Lua Engine: Failed to prepare file: %s", SDL_GetError());
         }
+        this->execute(code);
+
+        SDL_free((void*)code);
 
         pcall();
     }

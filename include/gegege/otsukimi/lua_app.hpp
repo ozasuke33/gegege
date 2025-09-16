@@ -54,11 +54,11 @@ struct LuaApp : Otsukimi {
     void onResized(int w, int h) override
     {
         int type = lua_getglobal(mLuaEngine.mL, "onResized");
+        mLuaEngine.popValue();
         if (type == LUA_TFUNCTION)
         {
             mLuaEngine.call("onResized", lua::LuaNumber::make(w), lua::LuaNumber::make(h));
         }
-        lua_pop(mLuaEngine.mL, 1);
     }
 
     void onMousePressed(float x, float y, const std::vector<bool> button) override
