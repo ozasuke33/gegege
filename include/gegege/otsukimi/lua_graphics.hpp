@@ -48,8 +48,8 @@ inline int lua_drawTexture(lua_State* L)
 
     lua::LuaValue angle = lua.popValue();
 
-    lua::LuaValue scaleX = lua.popValue();
     lua::LuaValue scaleY = lua.popValue();
+    lua::LuaValue scaleX = lua.popValue();
 
     lua::LuaValue sh = lua.popValue();
     lua::LuaValue sw = lua.popValue();
