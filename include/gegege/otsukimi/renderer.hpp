@@ -306,9 +306,13 @@ void main()
         basePath.append("data");
         basePath.append(path);
 
+        size_t dataSize;
+        const stbi_uc* fileData = (const stbi_uc*)SDL_LoadFile(basePath.generic_string().c_str(), &dataSize);
+
         Texture* tex = new Texture();
         int c;
-        unsigned char* data = stbi_load(basePath.generic_string().c_str(), &tex->mWidth, &tex->mHeight, &c, 0);
+        unsigned char* data = stbi_load_from_memory(fileData, dataSize, &tex->mWidth, &tex->mHeight, &c, 0);
+
         if (!data)
         {
             SDL_LogCritical(SDL_LOG_CATEGORY_APPLICATION, "Texture failed to load: %s", basePath.generic_string().c_str());
