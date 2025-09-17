@@ -4,11 +4,88 @@
 
 namespace gegege::otsukimi {
 
+int lua_myRequire(lua_State* L)
+{
+    lua::LuaEngine lua;
+    lua.mL = L;
+    std::string modname = lua.popString();
+
+    lua_getglobal(lua.mL, "package");
+    lua_getfield(lua.mL, -1, "loaded");
+    lua_remove(lua.mL, -2);
+    lua_getfield(lua.mL, -1, modname.c_str());
+    lua_remove(lua.mL, -2);
+    int type = lua_type(lua.mL, -1);
+    if (type == LUA_TTABLE)
+    {
+        return 1;
+    }
+    else if (type == LUA_TBOOLEAN)
+    {
+        return 1;
+    }
+    else if (type == LUA_TNIL)
+    {
+        lua_pop(lua.mL, 1);
+
+        std::filesystem::path path = SDL_GetBasePath();
+        // set data/?.lua
+        path.append("data");
+        path.append(modname + ".lua");
+        const char* code = (const char*)SDL_LoadFile(path.generic_string().c_str(), NULL);
+
+        if (!code)
+        {
+            path = SDL_GetBasePath();
+            path.append("data");
+            path.append(modname);
+            path.append("init.lua");
+            code = (const char*)SDL_LoadFile(path.generic_string().c_str(), NULL);
+            if (!code)
+            {
+                luaL_error(lua.mL, "Lua Engine: Failed to prepare file: %s", modname.c_str());
+                return 0;
+            }
+        }
+
+        if (luaL_loadstring(lua.mL, code) != LUA_OK)
+        {
+            SDL_Log("Lua Engine: Failed to prepare script: %s", lua.popString().c_str());
+        }
+        lua.pcall(0, 1);
+
+        if (lua_type(lua.mL, -1) != LUA_TNIL)
+        {
+            lua_getglobal(lua.mL, "package");
+            lua_getfield(lua.mL, -1, "loaded");
+            lua_remove(lua.mL, -2);
+            lua_pushstring(lua.mL, modname.c_str());
+            lua_pushvalue(lua.mL, -3);
+            lua_settable(lua.mL, -3);
+            lua_pop(lua.mL, 1);
+        }
+        else
+        {
+            lua_getglobal(lua.mL, "package");
+            lua_getfield(lua.mL, -1, "loaded");
+            lua_remove(lua.mL, -2);
+            lua_pushstring(lua.mL, modname.c_str());
+            lua_pushboolean(lua.mL, true);
+            lua_settable(lua.mL, -3);
+            lua_pop(lua.mL, 1);
+            lua_pushboolean(lua.mL, true);
+        }
+    }
+
+    return 1;
+}
+
 struct LuaApp : Otsukimi {
     void startup() override
     {
         Otsukimi::startup();
 
+        lua_register(mLuaEngine.mL, "require", lua_myRequire);
         lua_register(mLuaEngine.mL, "getMouseCoordinateToScreenCoordinateX", lua_getMouseCoordinateToScreenCoordinateX);
         lua_register(mLuaEngine.mL, "getMouseCoordinateToScreenCoordinateY", lua_getMouseCoordinateToScreenCoordinateY);
         lua_register(mLuaEngine.mL, "textureFind", lua_textureFind);

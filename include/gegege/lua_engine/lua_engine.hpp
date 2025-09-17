@@ -184,8 +184,6 @@ struct LuaEngine {
         this->execute(code);
 
         SDL_free((void*)code);
-
-        pcall();
     }
 
     bool pcall(int nargs = 0, int nresult = 0)
