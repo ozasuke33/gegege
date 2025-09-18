@@ -67,6 +67,7 @@ struct Renderer {
     int mTargetOffscreenHeight;
     int mScreenWidth;
     int mScreenHeight;
+    bool isDirtyOffscreenSize = false;
 
     void startup()
     {
@@ -120,6 +121,22 @@ void main()
         TTF_Quit();
     }
 
+    void setOffscreenWidth(int width)
+    {
+        if (mTargetOffscreenWidth != width) {
+            isDirtyOffscreenSize = true;
+        }
+        mTargetOffscreenWidth = width;
+    }
+
+    void setOffscreenHeight(int height)
+    {
+        if (mTargetOffscreenHeight != height) {
+            isDirtyOffscreenSize = true;
+        }
+        mTargetOffscreenHeight = height;
+    }
+
     void update(GLint viewportX, GLint viewportY, GLsizei viewportWidth, GLsizei viewportHeight)
     {
         mFrameNumber++;
@@ -133,6 +150,15 @@ void main()
         frame.mTextTextures.clear();
         frame.mTextures.clear();
         frame.mVertices.clear();
+
+        if (isDirtyOffscreenSize) {
+            for (FrameData& frame : mFrames) {
+                glDeleteTextures(1, &frame.mFrameBuffer->mTexID);
+                delete frame.mFrameBuffer;
+                frame.mFrameBuffer = createFBO(mTargetOffscreenWidth, mTargetOffscreenHeight);
+            }
+            isDirtyOffscreenSize = false;
+        }
 
         glBindFramebuffer(GL_FRAMEBUFFER, frame.mFrameBuffer->mFramebufferID);
 

@@ -6,6 +6,10 @@ namespace gegege::otsukimi {
 
 extern Renderer* gRenderer;
 
+void setOffscreenWidth(int width);
+
+void setOffscreenHeight(int height);
+
 Texture* textureFind(const std::string& path);
 
 int getTextureWidth(Texture* tex);

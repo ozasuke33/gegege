@@ -88,6 +88,8 @@ struct LuaApp : Otsukimi {
         lua_register(mLuaEngine.mL, "require", lua_myRequire);
         lua_register(mLuaEngine.mL, "getMouseCoordinateToScreenCoordinateX", lua_getMouseCoordinateToScreenCoordinateX);
         lua_register(mLuaEngine.mL, "getMouseCoordinateToScreenCoordinateY", lua_getMouseCoordinateToScreenCoordinateY);
+        lua_register(mLuaEngine.mL, "setOffscreenWidth", lua_setOffscreenWidth);
+        lua_register(mLuaEngine.mL, "setOffscreenHeight", lua_setOffscreenHeight);
         lua_register(mLuaEngine.mL, "textureFind", lua_textureFind);
         lua_register(mLuaEngine.mL, "getTextureWidth", lua_getTextureWidth);
         lua_register(mLuaEngine.mL, "getTextureHeight", lua_getTextureHeight);
