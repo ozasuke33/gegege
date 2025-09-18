@@ -28,6 +28,10 @@ struct Otsukimi {
 
     virtual void run();
 
+    virtual void onLoad()
+    {
+    }
+
     virtual void onResized(int w, int h)
     {
     }

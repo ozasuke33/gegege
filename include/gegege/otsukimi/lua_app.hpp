@@ -130,6 +130,16 @@ struct LuaApp : Otsukimi {
         mLuaEngine.shutdown();
     }
 
+    void onLoad() override
+    {
+        int type = lua_getglobal(mLuaEngine.mL, "onLoad");
+        mLuaEngine.popValue();
+        if (type == LUA_TFUNCTION)
+        {
+            mLuaEngine.call("onLoad");
+        }
+    }
+
     void onResized(int w, int h) override
     {
         int type = lua_getglobal(mLuaEngine.mL, "onResized");

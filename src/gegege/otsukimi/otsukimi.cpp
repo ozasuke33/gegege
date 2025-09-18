@@ -74,6 +74,10 @@ void Otsukimi::run()
     SDL_Event e;
     bool bQuit = false;
 
+    onLoad();
+    SDL_SetWindowSize(mSdlWindow, mRenderer.mTargetOffscreenWidth, mRenderer.mTargetOffscreenHeight);
+    SDL_SetWindowPosition(mSdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
+
     while (!bQuit)
     {
         while (SDL_PollEvent(&e) != 0)
