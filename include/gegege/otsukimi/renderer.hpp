@@ -123,7 +123,8 @@ void main()
 
     void setOffscreenWidth(int width)
     {
-        if (mTargetOffscreenWidth != width) {
+        if (mTargetOffscreenWidth != width)
+        {
             isDirtyOffscreenSize = true;
         }
         mTargetOffscreenWidth = width;
@@ -131,7 +132,8 @@ void main()
 
     void setOffscreenHeight(int height)
     {
-        if (mTargetOffscreenHeight != height) {
+        if (mTargetOffscreenHeight != height)
+        {
             isDirtyOffscreenSize = true;
         }
         mTargetOffscreenHeight = height;
@@ -151,8 +153,10 @@ void main()
         frame.mTextures.clear();
         frame.mVertices.clear();
 
-        if (isDirtyOffscreenSize) {
-            for (FrameData& frame : mFrames) {
+        if (isDirtyOffscreenSize)
+        {
+            for (FrameData& frame : mFrames)
+            {
                 glDeleteTextures(1, &frame.mFrameBuffer->mTexID);
                 glDeleteFramebuffers(1, &frame.mFrameBuffer->mFramebufferID);
                 delete frame.mFrameBuffer;
@@ -336,7 +340,8 @@ void main()
         size_t dataSize;
         const stbi_uc* fileData = (const stbi_uc*)SDL_LoadFile(basePath.generic_string().c_str(), &dataSize);
 
-        if (!fileData) {
+        if (!fileData)
+        {
             SDL_Log("Texture failed to load: %s", SDL_GetError());
         }
 
