@@ -122,7 +122,7 @@ void Otsukimi::run()
 
             if (e.type == SDL_EVENT_KEY_DOWN)
             {
-                if (e.key.mod & SDL_KMOD_ALT && e.key.key == SDLK_RETURN)
+                if (!e.key.repeat && e.key.mod & SDL_KMOD_ALT && e.key.key == SDLK_RETURN)
                 {
                     mFullscreen = !mFullscreen;
                     SDL_SetWindowFullscreen(mSdlWindow, mFullscreen);
