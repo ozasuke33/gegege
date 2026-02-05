@@ -439,7 +439,7 @@ void main()
 
         FrameData& frame = getCurrentFrame();
 
-        if (frame.mVertices.size() >= MAX_VERTEX)
+        if (frame.mVertices.size() + 6 >= MAX_VERTEX)
         {
             flush();
         }
