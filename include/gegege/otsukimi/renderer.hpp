@@ -520,9 +520,11 @@ void main()
 
     TTF_Font* fontFind(const std::string& path, float ptSize)
     {
-        if (mFonts.contains(path))
+        std::string key = path + "#" + std::to_string((int)ptSize);
+
+        if (mFonts.contains(key))
         {
-            return mFonts[path];
+            return mFonts[key];
         }
 
         std::filesystem::path basePath = SDL_GetBasePath();
@@ -539,9 +541,9 @@ void main()
             SDL_Log("Font loaded: %s", basePath.generic_string().c_str());
         }
 
-        mFonts[path] = font;
+        mFonts[key] = font;
 
-        return mFonts[path];
+        return mFonts[key];
     }
 
     void drawText(TTF_Font* font, float x, float y, const std::string& text, float r, float g, float b, float a)
