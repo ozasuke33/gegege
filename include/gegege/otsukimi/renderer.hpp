@@ -17,7 +17,7 @@
 
 namespace gegege::otsukimi {
 
-constexpr unsigned int FRAME_OVERLAP = 2;
+constexpr unsigned int FRAME_OVERLAP = 1;
 constexpr unsigned int MAX_VERTEX = 1024;
 
 struct Vertex {
