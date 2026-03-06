@@ -15,7 +15,7 @@ add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE ${stb_SOURCE_DIR})
 
 FetchContent_Declare(lua
-    URL https://github.com/lua/lua/archive/refs/tags/v5.4.8.tar.gz
+    URL https://github.com/lua/lua/archive/refs/tags/v5.5.0.tar.gz
 )
 FetchContent_MakeAvailable(lua)
 add_library(lua STATIC
