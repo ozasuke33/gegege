@@ -362,7 +362,7 @@ void main()
         }
 
         glGenTextures(1, &tex->mTexID);
-        SDL_assert_release(tex);
+        SDL_assert_release(tex->mTexID);
         glBindTexture(GL_TEXTURE_2D, tex->mTexID);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -567,7 +567,7 @@ void main()
         tex->mHeight = rgbaSurf->h;
 
         glGenTextures(1, &tex->mTexID);
-        SDL_assert_release(tex);
+        SDL_assert_release(tex->mTexID);
         glBindTexture(GL_TEXTURE_2D, tex->mTexID);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
