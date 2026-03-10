@@ -39,6 +39,10 @@ struct Otsukimi {
     {
     }
 
+    virtual void onMouseReleased(float x, float y, const std::vector<bool> button)
+    {
+    }
+
     virtual void onKeyPressed(const std::string& keyName, const std::string& scancodeName, bool isRepeat)
     {
     }

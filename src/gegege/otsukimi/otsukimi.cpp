@@ -117,6 +117,17 @@ void Otsukimi::run()
                 onMousePressed(e.button.x, e.button.y, button);
             }
 
+            if (e.type == SDL_EVENT_MOUSE_BUTTON_UP)
+            {
+                std::vector<bool> button;
+                button.emplace_back(e.button.button == SDL_BUTTON_LEFT);
+                button.emplace_back(e.button.button == SDL_BUTTON_MIDDLE);
+                button.emplace_back(e.button.button == SDL_BUTTON_RIGHT);
+                button.emplace_back(e.button.button == SDL_BUTTON_X1);
+                button.emplace_back(e.button.button == SDL_BUTTON_X2);
+                onMouseReleased(e.button.x, e.button.y, button);
+            }
+
             if (e.type == SDL_EVENT_KEY_DOWN)
             {
                 if (!e.key.repeat && e.key.mod & SDL_KMOD_ALT && e.key.key == SDLK_RETURN)

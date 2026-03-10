@@ -179,6 +179,29 @@ struct LuaApp : Otsukimi {
         lua_pop(mLuaEngine.mL, 1);
     }
 
+    void onMouseReleased(float x, float y, const std::vector<bool> button) override
+    {
+        int type = lua_getglobal(mLuaEngine.mL, "onMouseReleased");
+        if (type == LUA_TFUNCTION)
+        {
+            mLuaEngine.pushValue(lua::LuaNumber::make(x));
+            mLuaEngine.pushValue(lua::LuaNumber::make(y));
+            lua_newtable(mLuaEngine.mL);
+            lua_pushboolean(mLuaEngine.mL, button[0]);
+            lua_rawseti(mLuaEngine.mL, -2, 1);
+            lua_pushboolean(mLuaEngine.mL, button[1]);
+            lua_rawseti(mLuaEngine.mL, -2, 2);
+            lua_pushboolean(mLuaEngine.mL, button[2]);
+            lua_rawseti(mLuaEngine.mL, -2, 3);
+            lua_pushboolean(mLuaEngine.mL, button[3]);
+            lua_rawseti(mLuaEngine.mL, -2, 4);
+            lua_pushboolean(mLuaEngine.mL, button[4]);
+            lua_rawseti(mLuaEngine.mL, -2, 5);
+            mLuaEngine.pcall(3, 1);
+        }
+        lua_pop(mLuaEngine.mL, 1);
+    }
+
     void onKeyPressed(const std::string& keyName, const std::string& scancodeName, bool isRepeat) override
     {
         int type = lua_getglobal(mLuaEngine.mL, "onKeyPressed");
