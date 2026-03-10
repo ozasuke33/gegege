@@ -156,6 +156,16 @@ struct LuaApp : Otsukimi {
         }
     }
 
+    void onMouseMoved(float x, float y, float dx, float dy) override
+    {
+        int type = lua_getglobal(mLuaEngine.mL, "onMouseMoved");
+        mLuaEngine.popValue();
+        if (type == LUA_TFUNCTION)
+        {
+            mLuaEngine.call("onMouseMoved", lua::LuaNumber::make(x), lua::LuaNumber::make(y), lua::LuaNumber::make(dx), lua::LuaNumber::make(dy));
+        }
+    }
+
     void onMousePressed(float x, float y, const std::vector<bool> button) override
     {
         int type = lua_getglobal(mLuaEngine.mL, "onMousePressed");

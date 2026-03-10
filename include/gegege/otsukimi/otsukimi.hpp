@@ -35,6 +35,10 @@ struct Otsukimi {
     {
     }
 
+    virtual void onMouseMoved(float x, float y, float dx, float dy)
+    {
+    }
+
     virtual void onMousePressed(float x, float y, const std::vector<bool> button)
     {
     }

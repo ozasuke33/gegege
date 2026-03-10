@@ -106,6 +106,11 @@ void Otsukimi::run()
                 onResized(e.window.data1, e.window.data2);
             }
 
+            if (e.type == SDL_EVENT_MOUSE_MOTION)
+            {
+                onMouseMoved(e.motion.x, e.motion.y, e.motion.xrel, e.motion.yrel);
+            }
+
             if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
             {
                 std::vector<bool> button;
