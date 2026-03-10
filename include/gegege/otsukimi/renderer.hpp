@@ -69,6 +69,8 @@ struct Renderer {
     int mScreenHeight;
     bool isDirtyOffscreenSize = false;
 
+    SDL_Window* mSdlWindow;
+
     void startup()
     {
         if (!TTF_Init())

@@ -15,6 +15,20 @@ void setOffscreenHeight(int height)
     gRenderer->setOffscreenHeight(height);
 }
 
+void setScreenWidth(int width)
+{
+    int w, h;
+    SDL_GetWindowSizeInPixels(gRenderer->mSdlWindow, &w, &h);
+    SDL_SetWindowSize(gRenderer->mSdlWindow, width, h);
+}
+
+void setScreenHeight(int height)
+{
+    int w, h;
+    SDL_GetWindowSizeInPixels(gRenderer->mSdlWindow, &w, &h);
+    SDL_SetWindowSize(gRenderer->mSdlWindow, w, height);
+}
+
 Texture* textureFind(const std::string& path)
 {
     return gRenderer->textureFind(path);

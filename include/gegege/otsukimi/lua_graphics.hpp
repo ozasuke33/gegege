@@ -29,6 +29,30 @@ inline int lua_setOffscreenHeight(lua_State* L)
     return 0;
 }
 
+inline int lua_setScreenWidth(lua_State* L)
+{
+    lua::LuaEngine lua;
+    lua.mL = L;
+
+    lua::LuaValue width = lua.popValue();
+
+    setScreenWidth(std::get<lua::LuaNumber>(width).mValue);
+
+    return 0;
+}
+
+inline int lua_setScreenHeight(lua_State* L)
+{
+    lua::LuaEngine lua;
+    lua.mL = L;
+
+    lua::LuaValue height = lua.popValue();
+
+    setScreenHeight(std::get<lua::LuaNumber>(height).mValue);
+
+    return 0;
+}
+
 inline int lua_textureFind(lua_State* L)
 {
     lua::LuaEngine lua;

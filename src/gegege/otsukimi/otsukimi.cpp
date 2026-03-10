@@ -50,6 +50,7 @@ void Otsukimi::startup()
         }
     }
 
+    mRenderer.mSdlWindow = mSdlWindow;
     mRenderer.mTargetOffscreenWidth = 1280;
     mRenderer.mTargetOffscreenHeight = 720;
     mRenderer.startup();
@@ -72,7 +73,7 @@ void Otsukimi::run()
     bool bQuit = false;
 
     onLoad();
-    SDL_SetWindowSize(mSdlWindow, mRenderer.mTargetOffscreenWidth, mRenderer.mTargetOffscreenHeight);
+
     SDL_SetWindowPosition(mSdlWindow, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 
     while (!bQuit)

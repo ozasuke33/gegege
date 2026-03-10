@@ -10,6 +10,10 @@ void setOffscreenWidth(int width);
 
 void setOffscreenHeight(int height);
 
+void setScreenWidth(int width);
+
+void setScreenHeight(int height);
+
 Texture* textureFind(const std::string& path);
 
 int getTextureWidth(Texture* tex);
