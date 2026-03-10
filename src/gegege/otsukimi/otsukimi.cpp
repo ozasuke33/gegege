@@ -12,9 +12,6 @@ Renderer* gRenderer;
 
 void Otsukimi::startup()
 {
-    mLuaEngine.startup();
-    mLuaEngine.openlibs();
-
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
         SDL_Log("Otsukimi: Couldn't initialize SDL: %s", SDL_GetError());

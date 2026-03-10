@@ -14,7 +14,6 @@ namespace gegege::otsukimi {
 extern Renderer* gRenderer;
 
 struct Otsukimi {
-    lua::LuaEngine mLuaEngine;
     SDL_Window* mSdlWindow;
     SDL_GLContext mGlContext;
     bool mStopRendering = false;

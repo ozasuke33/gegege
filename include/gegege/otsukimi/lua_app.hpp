@@ -81,9 +81,15 @@ int lua_myRequire(lua_State* L)
 }
 
 struct LuaApp : Otsukimi {
+
+    lua::LuaEngine mLuaEngine;
+
     void startup() override
     {
         Otsukimi::startup();
+
+        mLuaEngine.startup();
+        mLuaEngine.openlibs();
 
         lua_register(mLuaEngine.mL, "require", lua_myRequire);
         lua_register(mLuaEngine.mL, "getMouseCoordinateToScreenCoordinateX", lua_getMouseCoordinateToScreenCoordinateX);
