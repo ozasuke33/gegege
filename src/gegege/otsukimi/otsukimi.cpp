@@ -131,6 +131,14 @@ void Otsukimi::run()
 
                 onKeyPressed(keyName, scancodeName, isRepeat);
             }
+
+            if (e.type == SDL_EVENT_KEY_UP)
+            {
+                std::string keyName(SDL_GetKeyName(e.key.key));
+                std::string scancodeName(SDL_GetScancodeName(e.key.scancode));
+
+                onKeyReleased(keyName, scancodeName);
+            }
         }
 
         if (mStopRendering)

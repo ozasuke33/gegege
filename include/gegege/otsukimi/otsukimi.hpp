@@ -43,6 +43,10 @@ struct Otsukimi {
     {
     }
 
+    virtual void onKeyReleased(const std::string& keyName, const std::string& scancodeName)
+    {
+    }
+
     virtual void onUpdate(float dt)
     {
     }

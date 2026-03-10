@@ -189,6 +189,16 @@ struct LuaApp : Otsukimi {
         }
     }
 
+    void onKeyReleased(const std::string& keyName, const std::string& scancodeName) override
+    {
+        int type = lua_getglobal(mLuaEngine.mL, "onKeyReleased");
+        mLuaEngine.popValue();
+        if (type == LUA_TFUNCTION)
+        {
+            mLuaEngine.call("onKeyReleased", lua::LuaString::make(keyName), lua::LuaString::make(scancodeName));
+        }
+    }
+
     void onUpdate(float dt) override
     {
         int type = lua_getglobal(mLuaEngine.mL, "onUpdate");
