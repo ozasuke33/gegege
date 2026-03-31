@@ -5,6 +5,9 @@ add_subdirectory(SDL EXCLUDE_FROM_ALL)
 set(SDLTTF_VENDORED ON)
 add_subdirectory(SDL_ttf EXCLUDE_FROM_ALL)
 
+set(SDLMIXER_VENDORED ON)
+add_subdirectory(SDL_mixer EXCLUDE_FROM_ALL)
+
 # May 26, 2025
 FetchContent_Declare(stb
     GIT_REPOSITORY https://github.com/nothings/stb
